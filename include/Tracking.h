@@ -51,7 +51,7 @@ class LoopClosing;
 class System;
 
 class Tracking
-{  
+{
 
 public:
     Tracking(System* pSys, ORBVocabulary* pVoc, FrameDrawer* pFrameDrawer, MapDrawer* pMapDrawer, Map* pMap,
@@ -74,6 +74,16 @@ public:
     // Use this function if you have deactivated local mapping and you only want to localize the camera.
     void InformOnlyTracking(const bool &flag);
 
+    // Access functions
+    cv::Mat GetDistCoef();
+
+    // Load Map from files stored in ORBSLAM2dir/Map/
+    bool LoadMap(vector<KeyFrame*> &output_KFs, vector<MapPoint*> &output_MPs);
+
+    // Build initial map with loaded KeyFrames and MapPoints
+    // Needs for LoadMap(...) to be called first
+    bool BuildLoadedMap();
+
 
 public:
 
@@ -95,6 +105,8 @@ public:
     // Current Frame
     Frame mCurrentFrame;
     cv::Mat mImGray;
+    cv::Mat mImColor;
+    int colorPub;
 
     // Initialization Variables (Monocular)
     std::vector<int> mvIniLastMatches;
@@ -113,6 +125,17 @@ public:
     // True if local mapping is deactivated and we are performing only localization
     bool mbOnlyTracking;
 
+    // Precision and Recall
+    int kpiTot = 0;
+    int kpiTP;
+    int kpiFP;
+    int kpiP = 0;
+    int kpiFN = 0;
+    vector<int> vkpiFN;
+
+    float kpiPrecision = 0.0;
+    float kpiRecall = 0.0;
+
     void Reset();
 
 protected:
@@ -129,10 +152,13 @@ protected:
 
     void CheckReplacedInLastFrame();
     bool TrackReferenceKeyFrame();
+    bool CheckReferenceKeyFrameReloc();
     void UpdateLastFrame();
     bool TrackWithMotionModel();
 
     bool Relocalization();
+    void SetRigidityFlag(bool rigid);
+    void RestoreRigidityFlag();
 
     void UpdateLocalMap();
     void UpdateLocalPoints();
@@ -143,6 +169,11 @@ protected:
 
     bool NeedNewKeyFrame();
     void CreateNewKeyFrame();
+
+    float RadiousByViewingCosT(const float &viewCos);
+    vector<float> mvScaleFactors;
+    int nTScaleLevels;
+    int fTScaleFactor;
 
     // In case of performing only localization, this flag is true when there are no matches to
     // points in the map. Still tracking will continue if there are enough matches with temporal points.
@@ -169,10 +200,10 @@ protected:
     KeyFrame* mpReferenceKF;
     std::vector<KeyFrame*> mvpLocalKeyFrames;
     std::vector<MapPoint*> mvpLocalMapPoints;
-    
+
     // System
     System* mpSystem;
-    
+
     //Drawers
     Viewer* mpViewer;
     FrameDrawer* mpFrameDrawer;
@@ -180,6 +211,25 @@ protected:
 
     //Map
     Map* mpMap;
+
+    // Input variables
+    int nTestAllFrames = 0;
+    bool bTestAllFrames = false;
+    int nPrecisionFrames = 2;
+    int nUseInverse = 0;
+    bool bUseInverse = false;
+
+    // Statistics pointers
+    Statistics* pStatsReloc;
+    Statistics* pStatsPR;   // Precision and Recall
+    Statistics* pStatsRelocS1;
+    Statistics* pStatsRelocS2;
+    Statistics* pStatsRelocS3;
+    Statistics* pStatsPnP;
+    Statistics* pStatsNLO;
+
+    // Statistics aux variables
+    int nRelocalizationsCounter;
 
     //Calibration matrix
     cv::Mat mK;
@@ -213,7 +263,14 @@ protected:
     //Color order (true RGB, false BGR, ignored if grayscale)
     bool mbRGB;
 
+    //Load Map
+    bool bMap;
+    vector<KeyFrame*> vpKFs_Loaded;
+    vector<MapPoint*> vpMPs_Loaded;
+
     list<MapPoint*> mlpTemporalPoints;
+
+    std::mutex mMutexLoadMap;
 };
 
 } //namespace ORB_SLAM

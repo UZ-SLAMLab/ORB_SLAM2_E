@@ -29,6 +29,9 @@ namespace ORB_SLAM2
 long unsigned int MapPoint::nNextId=0;
 mutex MapPoint::mGlobalMutex;
 
+MapPoint::MapPoint()
+{}
+
 MapPoint::MapPoint(const cv::Mat &Pos, KeyFrame *pRefKF, Map* pMap):
     mnFirstKFid(pRefKF->mnId), mnFirstFrame(pRefKF->mnFrameId), nObs(0), mnTrackReferenceForFrame(0),
     mnLastFrameSeen(0), mnBALocalForKF(0), mnFuseCandidateForKF(0), mnLoopPointForKF(0), mnCorrectedByKF(0),
@@ -41,6 +44,12 @@ MapPoint::MapPoint(const cv::Mat &Pos, KeyFrame *pRefKF, Map* pMap):
     // MapPoints can be created from Tracking and Local Mapping. This mutex avoid conflicts with id.
     unique_lock<mutex> lock(mpMap->mMutexPointCreation);
     mnId=nNextId++;
+
+    //Info for LocalMapping evaluation
+    MPage = 0;
+    bNewMP = true;
+    iDelCond = 0;
+    bRelocCheck = true;
 }
 
 MapPoint::MapPoint(const cv::Mat &Pos, Map* pMap, Frame* pFrame, const int &idxF):
@@ -68,6 +77,12 @@ MapPoint::MapPoint(const cv::Mat &Pos, Map* pMap, Frame* pFrame, const int &idxF
     // MapPoints can be created from Tracking and Local Mapping. This mutex avoid conflicts with id.
     unique_lock<mutex> lock(mpMap->mMutexPointCreation);
     mnId=nNextId++;
+
+    //Info for LocalMapping evaluation
+    MPage = 0;
+    bNewMP = true;
+    iDelCond = 0;
+    bRelocCheck = true;
 }
 
 void MapPoint::SetWorldPos(const cv::Mat &Pos)
@@ -106,6 +121,29 @@ void MapPoint::AddObservation(KeyFrame* pKF, size_t idx)
         nObs+=2;
     else
         nObs++;
+
+    if (nObsCounter<1000)
+    {
+        vvvnObservations[nObsCounter][0] = 1;
+        vvvnObservations[nObsCounter][1] = pKF->mnId;
+        vvvnObservations[nObsCounter][2] = idx;
+        nObsCounter++;
+    }
+}
+
+void MapPoint::AddObservationLoadMap(KeyFrame* pKF, size_t idx)
+{
+    cout << "0" << endl;
+    unique_lock<mutex> lock(mMutexFeatures);
+    cout << "1" << endl;
+    cout << mObservations.size() << endl;
+
+    //std::map<KeyFrame*,size_t> temp = make_pair(pKF,idx);
+    //mObservations.insert(temp);
+
+    mObservations[pKF]=idx;
+    cout << "2" << endl;
+    nObs++;
 }
 
 void MapPoint::EraseObservation(KeyFrame* pKF)
@@ -129,11 +167,31 @@ void MapPoint::EraseObservation(KeyFrame* pKF)
             // If only 2 observations or less, discard point
             if(nObs<=2)
                 bBad=true;
+
+            if (nObsCounter<1000)
+            {
+                vvvnObservations[nObsCounter][0] = 2;
+                vvvnObservations[nObsCounter][1] = pKF->mnId;
+                vvvnObservations[nObsCounter][2] = idx;
+                nObsCounter++;
+            }
+
         }
     }
 
     if(bBad)
         SetBadFlag();
+}
+
+void MapPoint::EraseObservationLoadMap(KeyFrame* pKF, size_t idx)
+{
+    unique_lock<mutex> lock(mMutexFeatures);
+    if(mObservations.count(pKF))
+    {
+        nObs--;
+
+        mObservations.erase(pKF);
+    }
 }
 
 map<KeyFrame*, size_t> MapPoint::GetObservations()
@@ -146,6 +204,11 @@ int MapPoint::Observations()
 {
     unique_lock<mutex> lock(mMutexFeatures);
     return nObs;
+}
+
+void MapPoint::ClearObservations()
+{
+    mObservations.clear();
 }
 
 void MapPoint::SetBadFlag()
@@ -414,6 +477,63 @@ int MapPoint::PredictScale(const float &currentDist, Frame* pF)
         nScale = pF->mnScaleLevels-1;
 
     return nScale;
+}
+
+void MapPoint::RecordObservers()
+{
+    int stgPos = 0;
+
+    for(map<KeyFrame*,size_t>::iterator mit=mObservations.begin(), mend=mObservations.end(); mit!=mend; mit++)
+    {
+        if (stgPos<20)
+        {
+            int nId = mit->first->mnId;
+            vnKfObs[stgPos] = nId;
+            stgPos++;
+        }
+    }
+
+    if (stgPos<20)
+    {
+        for (unsigned i = stgPos; i<20; i++)
+            vnKfObs[i] = 999999;
+    }
+
+    //cout << " 1 " << endl;
+    ClearObservations();
+    //cout << " 2 " << endl;
+
+    //for (unsigned int i=0; i<20; i++)
+    //    cout << vnKfObs[i] << " ";
+    //cout << endl;
+}
+
+void MapPoint::GetObservers(vector<int> &vGetObs)
+{
+    //vector<int> vObserv = vnKfObs;
+    cout << "aaaa" << endl;
+    //vGetObs = vObserv;
+}
+
+void MapPoint::UpdateData(Map *pMap, vector<int> &Ids, vector<int> &KfIds, vector<int> &vnObservers)
+{
+    Ids.push_back(mnId);
+    KfIds.push_back(mnFirstKFid);
+
+    for (unsigned int i=0; i<20; i++)
+    {
+        if (vnKfObs[i] == 999999)
+            continue;
+
+        vnObservers.push_back(vnKfObs[i]);
+
+        //cout << (vnKfObs[i]) << " ";
+    }
+    //cout << endl;
+
+    mpRefKF = NULL;
+    mpReplaced = NULL;
+    mpMap = pMap;
 }
 
 

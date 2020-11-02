@@ -24,6 +24,7 @@
 #include "Tracking.h"
 #include "MapPoint.h"
 #include "Map.h"
+#include "Statistics.h"
 
 #include<opencv2/core/core.hpp>
 #include<opencv2/features2d/features2d.hpp>
@@ -40,32 +41,62 @@ class Viewer;
 class FrameDrawer
 {
 public:
+
     FrameDrawer(Map* pMap);
 
     // Update info from the last processed frame.
     void Update(Tracking *pTracker);
 
     // Draw last processed frame.
-    cv::Mat DrawFrame();
+    cv::Mat DrawFrame(bool bDrawMesh);
+
+public:
+
+    vector<vector<cv::KeyPoint*> > vpKPs2Draw;
+    vector<vector<MapPoint*> > vpMPs2Draw;
 
 protected:
 
     void DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText);
 
+    cv::Point2f DistortMapPoint(MapPoint* pMP);
+    cv::Point2f UndistortPoint(cv::Point2f pt);
+    bool InCircle(cv::Point2f pt, int r);
+
     // Info of the frame to be drawn
     cv::Mat mIm;
     int N;
     vector<cv::KeyPoint> mvCurrentKeys;
+    //vector<MapPoint*> mvpMapPointsInFrame;
+    vector<float> fvMapPointSearchRadious;
+    //vector<MapPoint*> mvpMapPointsWoCloseORB;
+    //vector<MapPoint*> mvpMapPointsWoSimilarORB;
     vector<bool> mvbMap, mvbVO;
+    vector<bool> mvbNewMP, mvbOutlier, mvbNoClose, mvbNoSimilar;
+    vector<bool> mvbKP2Draw;
+
+    vector<cv::Point2f> vp2fNoClose;
+    vector<cv::Point2f> vp2fNoSimilar;
+
+    vector<bool> mvbFullMap;
+    vector<cv::Point2f> vp2fFullMap;
+    vector<int> viMapAge;
+
     bool mbOnlyTracking;
     int mnTracked, mnTrackedVO;
     vector<cv::KeyPoint> mvIniKeys;
     vector<int> mvIniMatches;
     int mState;
 
+    // Frame data
+    cv::Mat mRcw, mtcw;
+    float fx, fy, cx, cy, k1, k2, p1, p2, k3;
+
     Map* mpMap;
+    Statistics* pStats1;
 
     std::mutex mMutex;
+    std::mutex mMapPointMutex;
 };
 
 } //namespace ORB_SLAM

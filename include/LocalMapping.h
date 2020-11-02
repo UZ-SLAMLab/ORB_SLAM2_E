@@ -72,13 +72,27 @@ public:
         return mlNewKeyFrames.size();
     }
 
+    void SaveDataInFrame(Frame *pFrame);
+    bool bDataToSave;
+
 protected:
 
     bool CheckNewKeyFrames();
     void ProcessNewKeyFrame();
+
     void CreateNewMapPoints();
+      int nBaselineRejects;
+      int nTriangulationRejects;
+      int nParalaxRejects;
+      int nRepErrorRejects;
+      int nScaleConsRejects;
+      int nDepthRejects;
 
     void MapPointCulling();
+      int nMPsCulledBA, nKf1BA, nKf2BA, nKf3BA;
+      int nMPsCulledC1, nKf1C1, nKf2C1, nKf3C1;
+      int nMPsCulledC2, nKf2C2, nKf3C2;
+      int nMPsCulled;
     void SearchInNeighbors();
 
     void KeyFrameCulling();

@@ -26,6 +26,8 @@
 #include<thread>
 #include<opencv2/core/core.hpp>
 
+#include <stdio.h>
+
 #include "Tracking.h"
 #include "FrameDrawer.h"
 #include "MapDrawer.h"
@@ -35,6 +37,9 @@
 #include "KeyFrameDatabase.h"
 #include "ORBVocabulary.h"
 #include "Viewer.h"
+#include "Statistics.h"
+
+#include <unistd.h>
 
 namespace ORB_SLAM2
 {
@@ -112,9 +117,9 @@ public:
     // See format details at: http://www.cvlibs.net/datasets/kitti/eval_odometry.php
     void SaveTrajectoryKITTI(const string &filename);
 
-    // TODO: Save/Load functions
-    // SaveMap(const string &filename);
-    // LoadMap(const string &filename);
+    // Save/Load functions
+    void SaveMap(const string &filename_MPs, const string &filename_KFs);
+    //void LoadMap(const string &filename_MPs, const string &filename_KFs);
 
     // Information from most recent processed frame
     // You can call this right after TrackMonocular (or stereo or RGBD)
@@ -174,6 +179,9 @@ private:
     std::vector<MapPoint*> mTrackedMapPoints;
     std::vector<cv::KeyPoint> mTrackedKeyPointsUn;
     std::mutex mMutexState;
+
+    // Map LoadSave mutex
+    std::mutex mMutexLoadSave;
 };
 
 }// namespace ORB_SLAM

@@ -35,7 +35,7 @@ namespace ORB_SLAM2
 {
 
 class ORBmatcher
-{    
+{
 public:
 
     ORBmatcher(float nnratio=0.6, bool checkOri=true);
@@ -46,6 +46,10 @@ public:
     // Search matches between Frame keypoints and projected MapPoints. Returns number of matches
     // Used to track the local map (Tracking)
     int SearchByProjection(Frame &F, const std::vector<MapPoint*> &vpMapPoints, const float th=3);
+
+    // Search matches between current frame and the entire map for checking PnP results
+    int SearchByProjection(Frame &F, Map* pMap, double mCamRcw[3][3], double mCamtcw[3], vector<MapPoint*> &vMatchedMPs,
+        vector<cv::KeyPoint> &vMatchedKPs, vector<bool> &vbMatched, const float th);
 
     // Project MapPoints tracked in last frame into the current frame and search matches.
     // Used to track from previous frame (Tracking)
@@ -86,12 +90,17 @@ public:
 
     static const int TH_LOW;
     static const int TH_HIGH;
+    static const int TH_RELOC;
     static const int HISTO_LENGTH;
 
 
 protected:
 
     bool CheckDistEpipolarLine(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::Mat &F12, const KeyFrame *pKF);
+
+    double ComputeDistance(double R[3][3], double t[3], double pt[3], double po[3]);
+
+    bool isInFrustum(MapPoint *pMP, Frame mFr, double mRcw[3][3], double mtcw[3], float viewingCosLimit);
 
     float RadiusByViewingCos(const float &viewCos);
 

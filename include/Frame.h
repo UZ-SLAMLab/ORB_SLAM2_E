@@ -79,6 +79,9 @@ public:
         return mRwc.clone();
     }
 
+    // Returns the edges of the current frame
+    vector<int> GetImageBounds();
+
     // Check if a MapPoint is in the frustum of the camera
     // and fill variables of the MapPoint to be used by the tracking
     bool isInFrustum(MapPoint* pMP, float viewingCosLimit);
@@ -97,6 +100,11 @@ public:
 
     // Backprojects a keypoint (if stereo/depth info available) into 3D world coordinates.
     cv::Mat UnprojectStereo(const int &i);
+
+    // Access functions
+    cv::Mat Get_mRcw();
+    cv::Mat Get_mtcw();
+
 
 public:
     // Vocabulary used for relocalization.
@@ -151,6 +159,26 @@ public:
 
     // MapPoints associated to keypoints, NULL pointer if no association.
     std::vector<MapPoint*> mvpMapPoints;
+
+    // MapPoints present in current frame
+    std::vector<MapPoint*> mvpMapPointsInFrame;
+
+    // Search region around MapPoint
+    std::vector<float> fvMapPointSearchRadious;
+
+    // MapPoints not matched because no KeyPoint is near
+    std::vector<MapPoint*> mvpMapPointsWoCloseORB;
+
+    // MapPoints with close KeyPoints but no one similar enough to match
+    std::vector<MapPoint*> mvpMapPointsWoSimilarORB;
+
+    // Incoming data from LocalMapping
+    int SourceKfId;
+    std::vector<int> vnRejects;
+    int nMPsCulled;
+    int nMPsCulledBA, nKf1BA, nKf2BA, nKf3BA;
+    int nMPsCulledC1, nKf1C1, nKf2C1, nKf3C1;
+    int nMPsCulledC2, nKf2C2, nKf3C2;
 
     // Flag to identify outlier associations.
     std::vector<bool> mvbOutlier;

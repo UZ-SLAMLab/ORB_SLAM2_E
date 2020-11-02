@@ -59,6 +59,11 @@ public:
 
     void clear();
 
+    // Draw Mesh
+    //vector<long unsigned int> vMPsMeshId;
+    //vector<vector<int> > vQuads;
+    vector<vector<MapPoint*> > vpMPs2Draw;
+
     vector<KeyFrame*> mvpKeyFrameOrigins;
 
     std::mutex mMutexMapUpdate;

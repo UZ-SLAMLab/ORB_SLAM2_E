@@ -89,7 +89,12 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
 
     ComputeStereoMatches();
 
-    mvpMapPoints = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));    
+    mvpMapPoints = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
+    mvpMapPointsInFrame = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
+    fvMapPointSearchRadious = vector<float>(N,0.0);
+    mvpMapPointsWoCloseORB = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
+    mvpMapPointsWoSimilarORB = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
+    vnRejects = vector<int>(6,0);
     mvbOutlier = vector<bool>(N,false);
 
 
@@ -125,7 +130,7 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
 
     // Scale Level Info
     mnScaleLevels = mpORBextractorLeft->GetLevels();
-    mfScaleFactor = mpORBextractorLeft->GetScaleFactor();    
+    mfScaleFactor = mpORBextractorLeft->GetScaleFactor();
     mfLogScaleFactor = log(mfScaleFactor);
     mvScaleFactors = mpORBextractorLeft->GetScaleFactors();
     mvInvScaleFactors = mpORBextractorLeft->GetInverseScaleFactors();
@@ -145,6 +150,11 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
     ComputeStereoFromRGBD(imDepth);
 
     mvpMapPoints = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
+    mvpMapPointsInFrame = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
+    fvMapPointSearchRadious = vector<float>(N,0.0);
+    mvpMapPointsWoCloseORB = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
+    mvpMapPointsWoSimilarORB = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
+    vnRejects = vector<int>(6,0);
     mvbOutlier = vector<bool>(N,false);
 
     // This is done only for the first Frame (or after a change in the calibration)
@@ -202,6 +212,11 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
     mvDepth = vector<float>(N,-1);
 
     mvpMapPoints = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
+    mvpMapPointsInFrame = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
+    fvMapPointSearchRadious = vector<float>(N,0.0);
+    mvpMapPointsWoCloseORB = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
+    mvpMapPointsWoSimilarORB = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
+    vnRejects = vector<int>(6,0);
     mvbOutlier = vector<bool>(N,false);
 
     // This is done only for the first Frame (or after a change in the calibration)
@@ -259,7 +274,7 @@ void Frame::SetPose(cv::Mat Tcw)
 }
 
 void Frame::UpdatePoseMatrices()
-{ 
+{
     mRcw = mTcw.rowRange(0,3).colRange(0,3);
     mRwc = mRcw.t();
     mtcw = mTcw.rowRange(0,3).col(3);
@@ -271,7 +286,7 @@ bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit)
     pMP->mbTrackInView = false;
 
     // 3D in absolute coordinates
-    cv::Mat P = pMP->GetWorldPos(); 
+    cv::Mat P = pMP->GetWorldPos();
 
     // 3D in camera coordinates
     const cv::Mat Pc = mRcw*P+mtcw;
@@ -299,7 +314,7 @@ bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit)
     const cv::Mat PO = P-mOw;
     const float dist = cv::norm(PO);
 
-    if(dist<minDistance || dist>maxDistance)
+    if(dist<0.9*minDistance || dist>maxDistance/0.9)
         return false;
 
    // Check viewing angle
@@ -461,6 +476,52 @@ void Frame::ComputeImageBounds(const cv::Mat &imLeft)
         mnMinY = 0.0f;
         mnMaxY = imLeft.rows;
     }
+}
+
+vector<int> Frame::GetImageBounds()
+{
+    /*int minX, maxX;
+    int minY, maxY;
+
+    if(mDistCoef.at<float>(0)!=0.0)
+    {
+        cv::Mat mat(4,2,CV_32F);
+        mat.at<float>(0,0)=0.0; mat.at<float>(0,1)=0.0;
+        mat.at<float>(1,0)=imLeft.cols; mat.at<float>(1,1)=0.0;
+        mat.at<float>(2,0)=0.0; mat.at<float>(2,1)=imLeft.rows;
+        mat.at<float>(3,0)=imLeft.cols; mat.at<float>(3,1)=imLeft.rows;
+
+        // Undistort corners
+        mat=mat.reshape(2);
+        cv::undistortPoints(mat,mat,mK,mDistCoef,cv::Mat(),mK);
+        mat=mat.reshape(1);
+
+        minX = min(floor(mat.at<float>(0,0)),floor(mat.at<float>(2,0)));
+        maxX = max(ceil(mat.at<float>(1,0)),ceil(mat.at<float>(3,0)));
+        minY = min(floor(mat.at<float>(0,1)),floor(mat.at<float>(1,1)));
+        maxY = max(ceil(mat.at<float>(2,1)),ceil(mat.at<float>(3,1)));
+
+    }
+    else
+    {
+        minX = 0;
+        maxX = imLeft.cols;
+        minY = 0;
+        maxY = imLeft.rows;
+    }*/
+
+    vector<int> bounds;
+    //bounds.push_back(minX);
+    //bounds.push_back(maxX);
+    //bounds.push_back(minY);
+    //bounds.push_back(maxY);
+
+    bounds.push_back(mnMinX);
+    bounds.push_back(mnMaxX);
+    bounds.push_back(mnMinY);
+    bounds.push_back(mnMaxY);
+
+    return bounds;
 }
 
 void Frame::ComputeStereoMatches()
@@ -677,6 +738,24 @@ cv::Mat Frame::UnprojectStereo(const int &i)
     }
     else
         return cv::Mat();
+}
+
+cv::Mat Frame::Get_mRcw()
+{
+    cv::Mat Rcw;
+    Rcw = cv::Mat::ones(3,3,mRcw.type());
+    if (!mRcw.empty())
+        Rcw = mRcw.clone();
+    return Rcw;
+}
+
+cv::Mat Frame::Get_mtcw()
+{
+    cv::Mat tcw;
+    tcw = cv::Mat::ones(3,1,mtcw.type());
+    if (!mtcw.empty())
+        tcw = mtcw.clone();
+    return tcw;
 }
 
 } //namespace ORB_SLAM

@@ -33,16 +33,40 @@ FrameDrawer::FrameDrawer(Map* pMap):mpMap(pMap)
 {
     mState=Tracking::SYSTEM_NOT_READY;
     mIm = cv::Mat(480,640,CV_8UC3, cv::Scalar(0,0,0));
+
+    // Output text files for saving statistics
+    static Statistics Stats1("/home/cirauqui/workspace/ORB_SLAM2/output/evaluation/StatsW1.txt");
+      pStats1 = &Stats1;
+      pStats1->OpenFile(1);
+      pStats1->ColumnHeadersT();
+      pStats1->CloseFile();
+
 }
 
-cv::Mat FrameDrawer::DrawFrame()
+cv::Mat FrameDrawer::DrawFrame(bool bDrawMesh)
 {
     cv::Mat im;
-    vector<cv::KeyPoint> vIniKeys; // Initialization: KeyPoints in reference frame
-    vector<int> vMatches; // Initialization: correspondeces with reference keypoints
-    vector<cv::KeyPoint> vCurrentKeys; // KeyPoints in current frame
-    vector<bool> vbVO, vbMap; // Tracked MapPoints in current frame
-    int state; // Tracking state
+    vector<cv::KeyPoint> vIniKeys;              // Initialization: KeyPoints in reference frame
+    vector<int> vMatches;                       // Initialization: correspondeces with reference keypoints
+    vector<cv::KeyPoint> vCurrentKeys;          // KeyPoints in current frame
+    vector<bool> vbVO, vbMap;                   // Tracked MapPoints in current frame
+    int state;                                  // Tracking state
+
+    vector<cv::Point2f> vMap;
+    vector<cv::Point2f> vNoClose;
+    vector<cv::Point2f> vNoSimilar;
+    vector<float> fRadious;
+
+    vector<bool> vbFullMap, vbNewMP, vbOutlier, vbNoClose, vbNoSimilar;
+
+    vector<int> viAge;
+
+    int nMPsInFrame = 0;
+    int nTrackedYoung = 0;
+    int nTrackedAdult = 0;
+    int nOutliers = 0;
+    int nNoCloseORB = 0;
+    int nNoSimilar = 0;
 
     //Copy variables within scoped mutex
     {
@@ -64,10 +88,24 @@ cv::Mat FrameDrawer::DrawFrame()
             vCurrentKeys = mvCurrentKeys;
             vbVO = mvbVO;
             vbMap = mvbMap;
+
+            vbFullMap = mvbFullMap;
+            vbNewMP = mvbNewMP;
+            vbOutlier = mvbOutlier;
+            vbNoClose = mvbNoClose;
+            vbNoSimilar = mvbNoSimilar;
+
+            vMap = vp2fFullMap;
+            fRadious = fvMapPointSearchRadious;
+            vNoClose = vp2fNoClose;
+            vNoSimilar = vp2fNoSimilar;
+
+            viAge = viMapAge;
         }
         else if(mState==Tracking::LOST)
         {
             vCurrentKeys = mvCurrentKeys;
+            vMap = vp2fFullMap;
         }
     } // destroy scoped mutex -> release mutex
 
@@ -84,43 +122,148 @@ cv::Mat FrameDrawer::DrawFrame()
                 cv::line(im,vIniKeys[i].pt,vCurrentKeys[vMatches[i]].pt,
                         cv::Scalar(0,255,0));
             }
-        }        
+        }
     }
     else if(state==Tracking::OK) //TRACKING
     {
         mnTracked=0;
         mnTrackedVO=0;
-        const float r = 5;
-        const int n = vCurrentKeys.size();
-        for(int i=0;i<n;i++)
+        // const float r = 5;
+        for(int i=0;i<N;i++)
         {
-            if(vbVO[i] || vbMap[i])
+            if (vbFullMap[i])
             {
-                cv::Point2f pt1,pt2;
-                pt1.x=vCurrentKeys[i].pt.x-r;
-                pt1.y=vCurrentKeys[i].pt.y-r;
-                pt2.x=vCurrentKeys[i].pt.x+r;
-                pt2.y=vCurrentKeys[i].pt.y+r;
+                if((vbVO[i] || vbMap[i]) && !vbOutlier[i] && !vbNoClose[i] && !vbNoSimilar[i])
+                {
+                    cv::Point2f p2f_mp = vMap[i];
+                    cv::Point2f p2f_kp = vCurrentKeys[i].pt;
 
-                // This is a match to a MapPoint in the map
-                if(vbMap[i])
-                {
-                    cv::rectangle(im,pt1,pt2,cv::Scalar(0,255,0));
-                    cv::circle(im,vCurrentKeys[i].pt,2,cv::Scalar(0,255,0),-1);
+                    if(viAge[i]<3)
+                    {
+                        cv::circle(im,p2f_kp,2,cv::Scalar(255,190,0),-1);
+                        cv::line(im,p2f_kp,p2f_mp,cv::Scalar(255,120,20),1,8,0);
+                        cv::circle(im,p2f_mp,2,cv::Scalar(255,120,20),-1);
+                        if (fRadious[i]>0.0) cv::circle(im,p2f_mp,fRadious[i],cv::Scalar(255,120,20),1);
+                        nTrackedYoung++;
+                    }
+                    else
+                    {
+                        cv::circle(im,p2f_kp,2,cv::Scalar(0,255,0),-1);
+                        cv::line(im,p2f_kp,p2f_mp,cv::Scalar(0,120,0),1,8,0);
+                        cv::circle(im,p2f_mp,2,cv::Scalar(0,120,0),-1);
+                        if (fRadious[i]>0.0) cv::circle(im,p2f_mp,fRadious[i],cv::Scalar(0,120,0),1);
+                        nTrackedAdult++;
+                    }
                     mnTracked++;
+                    nMPsInFrame++;
                 }
-                else // This is match to a "visual odometry" MapPoint created in the last frame
+
+                else if(vbOutlier[i] && !vbNoClose[i] && !vbNoSimilar[i])
                 {
-                    cv::rectangle(im,pt1,pt2,cv::Scalar(255,0,0));
-                    cv::circle(im,vCurrentKeys[i].pt,2,cv::Scalar(255,0,0),-1);
-                    mnTrackedVO++;
+                    cv::Point2f p2f_mp = vMap[i];
+                    cv::Point2f p2f_kp = vCurrentKeys[i].pt;
+
+                    cv::circle(im,p2f_kp,2,cv::Scalar(200,0,150),-1);
+                    cv::line(im,p2f_kp,p2f_mp,cv::Scalar(150,0,100),1,8,0);
+                    cv::circle(im,p2f_mp,2,cv::Scalar(150,0,100),-1);
+                    if (fRadious[i]>0.0) cv::circle(im,p2f_mp,fRadious[i],cv::Scalar(150,0,100),1);
+                    nOutliers++;
+                    nMPsInFrame++;
                 }
+
+                else if(!vbOutlier[i] && vbNoClose[i] && !vbNoSimilar[i])
+                {
+                    cv::Point2f p2f_mp = vMap[i];
+                    cv::circle(im,p2f_mp,2,cv::Scalar(140,0,0),-1);
+                    nNoCloseORB++;
+                    nMPsInFrame++;
+                }
+
+                else if (!vbOutlier[i] && !vbNoClose[i] && vbNoSimilar[i])
+                {
+                    cv::Point2f p2f_mp = vMap[i];
+                    cv::circle(im,p2f_mp,2,cv::Scalar(140,50,50),-1);
+                    nNoSimilar++;
+                    nMPsInFrame++;
+                }
+
+                /*else
+                {
+                    cv::Point2f p2f_mp = vMap[i];
+                    cv::circle(im,p2f_mp,2,cv::Scalar(255,255,255),-1);
+                    nMPsInFrame++;
+                }*/
             }
         }
+
+        /*
+        if (vpKPs2Draw.size() > 0);
+        {
+            for(unsigned int i=0; i<vpKPs2Draw.size(); i++)
+            {
+                cv::Point2f v0 = vpKPs2Draw[i][0]->pt;
+                cv::Point2f v1 = vpKPs2Draw[i][1]->pt;
+                cv::Point2f v2 = vpKPs2Draw[i][2]->pt;
+
+                cv::Point2f m01, m02, m12, m012;
+                m01.x = (v0.x+v1.x)/2;  m01.y = (v0.y+v1.y)/2;
+                m02.x = (v0.x+v2.x)/2;  m02.y = (v0.y+v2.y)/2;
+                m12.x = (v1.x+v2.x)/2;  m12.y = (v1.y+v2.y)/2;
+                m012.x = (v0.x+v1.x+v2.x)/3;    m012.y = (v0.y+v1.y+v2.y)/3;
+
+                int ncolor = 220;
+                cv::line(im,v0,v1,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
+                cv::line(im,v0,v2,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
+                cv::line(im,v1,v2,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
+
+                cv::line(im,v0,m01,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
+                cv::line(im,m01,v1,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
+                cv::line(im,v1,m12,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
+                cv::line(im,m12,v2,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
+                cv::line(im,v2,m02,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
+                cv::line(im,m02,v0,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
+                cv::line(im,m012,m01,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
+                cv::line(im,m012,m02,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
+                cv::line(im,m012,m12,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
+            }
+        }
+        */
+
+        //cout << "predraw frame" << endl;
+        if (vpMPs2Draw.size() > 0 && bDrawMesh==true)
+        {
+            for(unsigned int i=0; i<vpMPs2Draw.size(); i++)
+            {
+                if (!vpMPs2Draw[i][0] || !vpMPs2Draw[i][1] || !vpMPs2Draw[i][2])
+                    continue;
+
+                //cout << "0" << endl;
+
+                cv::Point2f v0 = DistortMapPoint(vpMPs2Draw[i][0]);
+                cv::Point2f v1 = DistortMapPoint(vpMPs2Draw[i][1]);
+                cv::Point2f v2 = DistortMapPoint(vpMPs2Draw[i][2]);
+
+                //cout << "1" << endl;
+
+                int ncolor = 220;
+                cv::line(im,v0,v1,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
+                cv::line(im,v0,v2,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
+                cv::line(im,v1,v2,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
+
+                //cout << "2" << endl;
+            }
+        }
+        //cout << "postdraw frame" << endl;
     }
+
+    pStats1->OpenFile(0);
+    pStats1->ColumnHeadersT();
+    pStats1->CloseFile();
 
     cv::Mat imWithInfo;
     DrawTextInfo(im,state, imWithInfo);
+
+    //cout << "Outliers " << nOutliers << endl;
 
     return imWithInfo;
 }
@@ -167,12 +310,45 @@ void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText)
 void FrameDrawer::Update(Tracking *pTracker)
 {
     unique_lock<mutex> lock(mMutex);
-    pTracker->mImGray.copyTo(mIm);
+    if (pTracker->colorPub == 1)
+        pTracker->mImColor.copyTo(mIm);
+    else
+        pTracker->mImGray.copyTo(mIm);
     mvCurrentKeys=pTracker->mCurrentFrame.mvKeys;
     N = mvCurrentKeys.size();
     mvbVO = vector<bool>(N,false);
     mvbMap = vector<bool>(N,false);
+    mvbFullMap = vector<bool>(N,false);
+    mvbNewMP = vector<bool>(N,false);
+    vp2fFullMap = vector<cv::Point2f>(N,cv::Point2f(0.0,0.0));
+    viMapAge = vector<int>(N,0);
+    mvbOutlier = vector<bool>(N,false);
+    mvbNoClose = vector<bool>(N,false);
+    vp2fNoClose = vector<cv::Point2f>(N,cv::Point2f(0.0,0.0));
+    mvbNoSimilar = vector<bool>(N,false);
+    vp2fNoSimilar = vector<cv::Point2f>(N,cv::Point2f(0.0,0.0));
     mbOnlyTracking = pTracker->mbOnlyTracking;
+
+    //mvpMapPointsInFrame = pTracker->mCurrentFrame.mvpMapPointsInFrame;
+    fvMapPointSearchRadious = pTracker->mCurrentFrame.fvMapPointSearchRadious;
+    //mvpMapPointsWoCloseORB = pTracker->mCurrentFrame.mvpMapPointsWoCloseORB;
+    //mvpMapPointsWoSimilarORB = pTracker->mCurrentFrame.mvpMapPointsWoSimilarORB;
+
+    // Frame data
+    mRcw = pTracker->mCurrentFrame.Get_mRcw();
+    mtcw = pTracker->mCurrentFrame.Get_mtcw();
+    fx = pTracker->mCurrentFrame.fx;
+    fy = pTracker->mCurrentFrame.fy;
+    cx = pTracker->mCurrentFrame.cx;
+    cy = pTracker->mCurrentFrame.cy;
+
+    cv::Mat DistCoef(4,1,CV_32F);
+    DistCoef = pTracker->GetDistCoef();
+    k1 = DistCoef.at<float>(0);
+    k2 = DistCoef.at<float>(1);
+    p1 = DistCoef.at<float>(2);
+    p2 = DistCoef.at<float>(3);
+    k3 = DistCoef.at<float>(4);
 
 
     if(pTracker->mLastProcessedState==Tracking::NOT_INITIALIZED)
@@ -195,9 +371,88 @@ void FrameDrawer::Update(Tracking *pTracker)
                         mvbVO[i]=true;
                 }
             }
+            MapPoint* pMP2 = pTracker->mCurrentFrame.mvpMapPointsInFrame[i];
+            if(pMP2)
+            {
+                mvbFullMap[i] = true;
+                vp2fFullMap[i] = DistortMapPoint(pMP2);
+                viMapAge[i] = pMP2->MPage;
+                mvbNewMP[i] = pMP2->bNewMP;
+                mvbOutlier[i] = pMP2->isBad();
+            }
+            MapPoint* pMP3 = pTracker->mCurrentFrame.mvpMapPointsWoCloseORB[i];
+            if(pMP3)
+            {
+                mvbNoClose[i] = true;
+                vp2fNoClose[i] = DistortMapPoint(pMP3);
+            }
+            MapPoint* pMP4 = pTracker->mCurrentFrame.mvpMapPointsWoSimilarORB[i];
+            if(pMP4)
+            {
+                mvbNoSimilar[i] = true;
+                vp2fNoSimilar[i] = DistortMapPoint(pMP4);
+            }
         }
     }
     mState=static_cast<int>(pTracker->mLastProcessedState);
+}
+
+cv::Point2f FrameDrawer::DistortMapPoint(MapPoint* pMP)
+{
+    unique_lock<mutex> lock(mMapPointMutex);
+
+    // 3D in absolute coordinates
+    cv::Mat P = pMP->GetWorldPos();
+    // 3D in camera coordinates
+    const cv::Mat Pc = mRcw*P+mtcw;
+    const float PcX = Pc.at<float>(0);
+    const float PcY = Pc.at<float>(1);
+    const float PcZ = Pc.at<float>(2);
+
+    //Project in image
+    const float invz = 1.0/PcZ;
+
+    float a = fx*PcX*invz + cx;
+    float b = fy*PcY*invz + cy;
+
+    float aa = (a-cx)/fx;
+    float bb = (b-cy)/fy;
+    float rSQ = (aa*aa+bb*bb);
+    float corr = (1+rSQ*k1+rSQ*rSQ*k2);
+
+    cv::Point2f pt;
+
+    pt.x = (aa*corr)*fx+cx;
+    pt.y = (bb*corr)*fy+cy;
+
+    return pt;
+}
+
+cv::Point2f FrameDrawer::UndistortPoint(cv::Point2f pt)
+{
+    float a = (pt.x-cx)/fx;
+    float b = (pt.y-cy)/fy;
+    float rSQ = (a*a+b*b);
+    float corr = (1+rSQ*k1+rSQ*rSQ*k2);
+
+    cv::Point2f ptUn;
+
+    ptUn.x = (a*corr)*fx+cx;
+    ptUn.y = (b*corr)*fy+cy;
+
+    return ptUn;
+}
+
+bool FrameDrawer::InCircle(cv::Point2f pt, int r)
+{
+    int r_sq = r*r;
+    int pt_rx = pt.x - cx;
+    int pt_ry = pt.y - cy;
+    int dist = pt_rx*pt_rx + pt_ry*pt_ry;
+    if (dist > r_sq)
+        return false;
+    else
+        return true;
 }
 
 } //namespace ORB_SLAM

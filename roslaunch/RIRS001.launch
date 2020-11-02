@@ -1,0 +1,6 @@
+<launch>
+
+   <node pkg="ORB_SLAM2" type="Mono" name="ORB_SLAM2"  args="../../../Vocabulary/ORBvoc.txt ../../../roslaunch/Settings_RIRS001.yaml" cwd="node" output="screen">
+	</node>
+
+</launch>

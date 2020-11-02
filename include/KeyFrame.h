@@ -43,6 +43,7 @@ class KeyFrameDatabase;
 class KeyFrame
 {
 public:
+    //KeyFrame();
     KeyFrame(Frame &F, Map* pMap, KeyFrameDatabase* pKFDB);
 
     // Pose functions
@@ -82,13 +83,16 @@ public:
 
     // MapPoint observation functions
     void AddMapPoint(MapPoint* pMP, const size_t &idx);
+    void AddMapPointLoadMap(MapPoint* pMP, const size_t &idx);
     void EraseMapPointMatch(const size_t &idx);
+    void EraseMapPointMatchLoadMap(const size_t &idx);
     void EraseMapPointMatch(MapPoint* pMP);
     void ReplaceMapPointMatch(const size_t &idx, MapPoint* pMP);
     std::set<MapPoint*> GetMapPoints();
     std::vector<MapPoint*> GetMapPointMatches();
     int TrackedMapPoints(const int &minObs);
     MapPoint* GetMapPoint(const size_t &idx);
+    cv::KeyPoint GetKeyPointUn(const size_t &idx) const;
 
     // KeyPoint functions
     std::vector<size_t> GetFeaturesInArea(const float &x, const float  &y, const float  &r) const;
@@ -105,6 +109,9 @@ public:
     void SetBadFlag();
     bool isBad();
 
+    // Scale functions
+    //float inline GetSigma2
+
     // Compute Scene Depth (q=2 median). Used in monocular.
     float ComputeSceneMedianDepth(const int q);
 
@@ -115,6 +122,12 @@ public:
     static bool lId(KeyFrame* pKF1, KeyFrame* pKF2){
         return pKF1->mnId<pKF2->mnId;
     }
+
+    // Ready object for saving to file. Clears vectors, reorganizes data.
+    void ReadyToSave();
+
+    // Edit functions for Map Loading
+    void UpdateData(Map *pMap, KeyFrameDatabase *pKFDB, ORBVocabulary *pORBVoc);
 
 
     // The following variables are accesed from only 1 thread or never change (no mutex needed).
@@ -139,6 +152,9 @@ public:
     // Variables used by the local mapping
     long unsigned int mnBALocalForKF;
     long unsigned int mnBAFixedForKF;
+
+    //Variables used for relocalization
+    unsigned int mnBAFixedForReloc;
 
     // Variables used by the keyframe database
     long unsigned int mnLoopQuery;
@@ -188,6 +204,13 @@ public:
     const int mnMaxY;
     const cv::Mat mK;
 
+    // Info for map saving
+    unsigned int nMPsCounter = 0;
+    int vvvnMPsObserved[10000][3];
+    int vnMPsInFrame[10000];
+
+
+
 
     // The following variables need to be accessed trough a mutex to be thread safe.
 protected:
@@ -222,7 +245,7 @@ protected:
     // Bad flags
     bool mbNotErase;
     bool mbToBeErased;
-    bool mbBad;    
+    bool mbBad;
 
     float mHalfBaseline; // Only for visualization
 
@@ -231,6 +254,8 @@ protected:
     std::mutex mMutexPose;
     std::mutex mMutexConnections;
     std::mutex mMutexFeatures;
+
+     // Saved data
 };
 
 } //namespace ORB_SLAM

@@ -28,10 +28,13 @@ namespace ORB_SLAM2
 
 long unsigned int KeyFrame::nNextId=0;
 
+//KeyFrame::KeyFrame()
+//{}
+
 KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB):
     mnFrameId(F.mnId),  mTimeStamp(F.mTimeStamp), mnGridCols(FRAME_GRID_COLS), mnGridRows(FRAME_GRID_ROWS),
     mfGridElementWidthInv(F.mfGridElementWidthInv), mfGridElementHeightInv(F.mfGridElementHeightInv),
-    mnTrackReferenceForFrame(0), mnFuseTargetForKF(0), mnBALocalForKF(0), mnBAFixedForKF(0),
+    mnTrackReferenceForFrame(0), mnFuseTargetForKF(0), mnBALocalForKF(0), mnBAFixedForKF(0), mnBAFixedForReloc(0),
     mnLoopQuery(0), mnLoopWords(0), mnRelocQuery(0), mnRelocWords(0), mnBAGlobalForKF(0),
     fx(F.fx), fy(F.fy), cx(F.cx), cy(F.cy), invfx(F.invfx), invfy(F.invfy),
     mbf(F.mbf), mb(F.mb), mThDepth(F.mThDepth), N(F.N), mvKeys(F.mvKeys), mvKeysUn(F.mvKeysUn),
@@ -43,7 +46,11 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB):
     mpORBvocabulary(F.mpORBvocabulary), mbFirstConnection(true), mpParent(NULL), mbNotErase(false),
     mbToBeErased(false), mbBad(false), mHalfBaseline(F.mb/2), mpMap(pMap)
 {
+    //cout << " 1 " << endl;
+
     mnId=nNextId++;
+
+    //cout << " 2 " << endl;
 
     mGrid.resize(mnGridCols);
     for(int i=0; i<mnGridCols;i++)
@@ -53,7 +60,11 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB):
             mGrid[i][j] = F.mGrid[i][j];
     }
 
-    SetPose(F.mTcw);    
+    //cout << " 3 " << endl;
+
+    SetPose(F.mTcw);
+
+    //cout << " 4 " << endl;
 }
 
 void KeyFrame::ComputeBoW()
@@ -153,7 +164,7 @@ void KeyFrame::UpdateBestCovisibles()
     }
 
     mvpOrderedConnectedKeyFrames = vector<KeyFrame*>(lKFs.begin(),lKFs.end());
-    mvOrderedWeights = vector<int>(lWs.begin(), lWs.end());    
+    mvOrderedWeights = vector<int>(lWs.begin(), lWs.end());
 }
 
 set<KeyFrame*> KeyFrame::GetConnectedKeyFrames()
@@ -211,9 +222,37 @@ void KeyFrame::AddMapPoint(MapPoint *pMP, const size_t &idx)
 {
     unique_lock<mutex> lock(mMutexFeatures);
     mvpMapPoints[idx]=pMP;
+
+    if (nMPsCounter<10000)
+    {
+        vvvnMPsObserved[nMPsCounter][0] = 1;
+        vvvnMPsObserved[nMPsCounter][1] = pMP->mnId;
+        vvvnMPsObserved[nMPsCounter][2] = idx;
+        nMPsCounter++;
+    }
+}
+
+void KeyFrame::AddMapPointLoadMap(MapPoint *pMP, const size_t &idx)
+{
+    unique_lock<mutex> lock(mMutexFeatures);
+    mvpMapPoints[idx]=pMP;
 }
 
 void KeyFrame::EraseMapPointMatch(const size_t &idx)
+{
+    unique_lock<mutex> lock(mMutexFeatures);
+    mvpMapPoints[idx]=static_cast<MapPoint*>(NULL);
+
+    if (nMPsCounter<10000)
+    {
+        vvvnMPsObserved[nMPsCounter][0] = 2;
+        vvvnMPsObserved[nMPsCounter][1] = 0;
+        vvvnMPsObserved[nMPsCounter][2] = idx;
+        nMPsCounter++;
+    }
+}
+
+void KeyFrame::EraseMapPointMatchLoadMap(const size_t &idx)
 {
     unique_lock<mutex> lock(mMutexFeatures);
     mvpMapPoints[idx]=static_cast<MapPoint*>(NULL);
@@ -284,6 +323,11 @@ MapPoint* KeyFrame::GetMapPoint(const size_t &idx)
 {
     unique_lock<mutex> lock(mMutexFeatures);
     return mvpMapPoints[idx];
+}
+
+cv::KeyPoint KeyFrame::GetKeyPointUn(const size_t &idx) const
+{
+    return mvKeysUn[idx];
 }
 
 void KeyFrame::UpdateConnections()
@@ -451,7 +495,7 @@ void KeyFrame::SetErase()
 }
 
 void KeyFrame::SetBadFlag()
-{   
+{
     {
         unique_lock<mutex> lock(mMutexConnections);
         if(mnId==0)
@@ -660,6 +704,66 @@ float KeyFrame::ComputeSceneMedianDepth(const int q)
     sort(vDepths.begin(),vDepths.end());
 
     return vDepths[(vDepths.size()-1)/q];
+}
+
+void KeyFrame::ReadyToSave()
+{
+    /*for (unsigned int i=0; i<mvKeys.size(); i++)
+    {
+        if (mvKeys[i])
+            mvKeys[i] = NULL;
+        if (mvKeysUn[i])
+            mvKeysUn[i] = NULL;
+        if (mvuRight[i])
+            mvuRight[i] = NULL;
+        if (mvDepth[i])
+            mvDepth[i] = NULL;
+    }*/
+    //mvKeys.clear();
+    //mvKeysUn.clear();
+    //mvuRight.clear();
+    //mvDepth.clear();
+
+
+    //mvScaleFactors.clear();
+    //mvLevelSigma2.clear();
+    //mvInvLevelSigma2.clear();
+    for (unsigned int i=0; i<10000; i++)
+    {
+        vnMPsInFrame[i] = -1;
+    }
+    for (unsigned int i=0; i<mvpMapPoints.size(); i++)
+    {
+        if (mvpMapPoints[i])
+            vnMPsInFrame[i] = mvpMapPoints[i]->mnId;
+    }
+
+    mvpMapPoints.clear();
+
+    mpKeyFrameDB = NULL;
+    mpORBvocabulary = NULL;
+
+    mGrid.clear();
+
+    mConnectedKeyFrameWeights.clear();
+    mvpOrderedConnectedKeyFrames.clear();
+    mvOrderedWeights.clear();
+
+    mpParent = NULL;
+    mspChildrens.clear();
+    mspLoopEdges.clear();
+
+    mpMap = NULL;
+}
+
+void KeyFrame::UpdateData(Map *pMap, KeyFrameDatabase *pKFDB, ORBVocabulary *pORBVoc)
+{
+    mpMap = pMap;
+    mpKeyFrameDB = pKFDB;
+    mpORBvocabulary = pORBVoc;
+    mpParent = NULL;
+
+    mvpMapPoints.clear();
 }
 
 } //namespace ORB_SLAM

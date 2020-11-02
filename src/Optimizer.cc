@@ -18,8 +18,12 @@
 * along with ORB-SLAM2. If not, see <http://www.gnu.org/licenses/>.
 */
 
+// ORBSLAM2 LIBRARIES
 #include "Optimizer.h"
+#include "FEM.h"
+#include "Thirdparty/g2o/g2o/FEA/include/FEA.h"
 
+// G2O LIBRARIES
 #include "Thirdparty/g2o/g2o/core/block_solver.h"
 #include "Thirdparty/g2o/g2o/core/optimization_algorithm_levenberg.h"
 #include "Thirdparty/g2o/g2o/solvers/linear_solver_eigen.h"
@@ -28,11 +32,32 @@
 #include "Thirdparty/g2o/g2o/solvers/linear_solver_dense.h"
 #include "Thirdparty/g2o/g2o/types/types_seven_dof_expmap.h"
 
+// PCL LIBRARIES
+#include <pcl/io/pcd_io.h>
+#include <pcl/io/vtk_io.h>
+#include <pcl/point_types.h>
+
+#include <pcl/common/common.h>
+#include <pcl/features/normal_3d_omp.h>
+#include <pcl/surface/mls.h>
+#include <pcl/surface/impl/mls.hpp>
+#include <pcl/kdtree/kdtree_flann.h>
+
+// POISSON RECONSTRUCTION
+#include <pcl/PCLPointCloud2.h>
+#include <pcl/console/parse.h>
+#include <pcl/console/time.h>
+#include <pcl/surface/poisson.h>
+
+// OTHER LIBRARIES
 #include<Eigen/StdVector>
+#include <algorithm>
 
 #include "Converter.h"
 
 #include<mutex>
+
+using namespace pcl;
 
 namespace ORB_SLAM2
 {
@@ -368,7 +393,7 @@ int Optimizer::PoseOptimization(Frame *pFrame)
     // At the next optimization, outliers are not included, but at the end they can be classified as inliers again.
     const float chi2Mono[4]={5.991,5.991,5.991,5.991};
     const float chi2Stereo[4]={7.815,7.815,7.815, 7.815};
-    const int its[4]={10,10,10,10};    
+    const int its[4]={10,10,10,10};
 
     int nBad=0;
     for(size_t it=0; it<4; it++)
@@ -393,7 +418,7 @@ int Optimizer::PoseOptimization(Frame *pFrame)
             const float chi2 = e->chi2();
 
             if(chi2>chi2Mono[it])
-            {                
+            {
                 pFrame->mvbOutlier[idx]=true;
                 e->setLevel(1);
                 nBad++;
@@ -428,7 +453,7 @@ int Optimizer::PoseOptimization(Frame *pFrame)
                 nBad++;
             }
             else
-            {                
+            {
                 e->setLevel(0);
                 pFrame->mvbOutlier[idx]=false;
             }
@@ -439,7 +464,7 @@ int Optimizer::PoseOptimization(Frame *pFrame)
 
         if(optimizer.edges().size()<10)
             break;
-    }    
+    }
 
     // Recover optimized pose and return number of inliers
     g2o::VertexSE3Expmap* vSE3_recov = static_cast<g2o::VertexSE3Expmap*>(optimizer.vertex(0));
@@ -450,8 +475,367 @@ int Optimizer::PoseOptimization(Frame *pFrame)
     return nInitialCorrespondences-nBad;
 }
 
+int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer)
+{
+    // Simulation parameters & Model constants
+    bool bGo = false;
+    bool bDebug = true;
+    bool bRegMesh = true;
+    bool bWUnknown = false;
+    const unsigned int in_E = 1100; //18000;
+    const float in_nu = 0.4999;
+    const float in_h = 0.5;
+    const float in_fg1 = 0.5773503;
+
+    FEM fem(pFrame->mnId,in_E,in_nu,in_h,in_fg1,bDebug);
+    FEA fea(pFrame->mnId,in_E,in_nu,in_h,in_fg1,bDebug);
+    FEA* pFEA = &fea;
+
+    // Configure g2o
+    g2o::SparseOptimizer optimizer;
+    g2o::BlockSolver_6_3::LinearSolverType * linearSolver;
+    linearSolver = new g2o::LinearSolverEigen<g2o::BlockSolver_6_3::PoseMatrixType>();
+    g2o::BlockSolver_6_3 * solver_ptr = new g2o::BlockSolver_6_3(linearSolver);
+    g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
+    optimizer.setAlgorithm(solver);
+    optimizer.setVerbose(false);
+
+    optimizer.setPtrFea(pFEA);
+    solver->setPtrFea(pFEA);
+    solver->setbfea(true);      //Set bInFEA in optimization_algorithm_levenberg
+
+    int nInitialCorrespondences = 0;
+
+
+    /// SET VERTICES
+
+    /// VERTEX - Movil - Current Camera Pose
+    // Set current camera pose as vertex(0)
+    g2o::VertexSE3Expmap * vSE3 = new g2o::VertexSE3Expmap();
+    vSE3->setEstimate(Converter::toSE3Quat(pFrame->mTcw));
+    vSE3->setId(0);
+    vSE3->setFixed(false);
+    optimizer.addVertex(vSE3);
+
+    /// VERTEX - Fixed - KFs that observe matched MPs in current frame
+    // Set KFs that observe the matched MPs in the current F as vertices
+    vector<MapPoint*> vpMapPoints;//todelete
+    vector<cv::KeyPoint> vKeysUn;//todelete
+    // vector<cv::KeyPoint> vKeys;     //DrawFrame
+    vector<KeyFrame*> vpFixedKFs;
+    unsigned int nKFs = 0;
+    unsigned int nMaxIdKf = 0;
+    unsigned int nMPs = 0;
+
+    for (unsigned int i=0; i<pFrame->mvpMapPoints.size(); i++)
+    {
+        MapPoint* pMP = pFrame->mvpMapPoints[i];
+        if(pMP)
+        {
+            pMP->bSetForReloc = true;
+            vpMapPoints.push_back(pMP);
+            vKeysUn.push_back(pFrame->mvKeysUn[i]);     //todelete
+            fem.vpKPs_t.push_back(&pFrame->mvKeys[i]);     //DrawFrame
+            fem.vpMPs_t.push_back(pMP);
+            fem.vpMPs_ut.push_back(pMP);
+            fem.idxMpF.push_back(i);
+
+            map<KeyFrame*,size_t> observations = pMP->GetObservations();
+            for(map<KeyFrame*,size_t>::iterator mit=observations.begin(), mend=observations.end(); mit!=mend; mit++)
+            {
+                KeyFrame* pKFi = mit->first;
+
+                if (pKFi->mnId == 0)
+                    continue;
+
+                if(!pKFi->isBad())
+                {
+                    if (pKFi->mnBAFixedForReloc != pFrame->mnId)
+                    {
+                        vpFixedKFs.push_back(pKFi);
+                        pKFi->mnBAFixedForReloc = pFrame->mnId;
+                        nKFs++;
+
+                        g2o::VertexSE3Expmap * vSE3 = new g2o::VertexSE3Expmap();
+                        vSE3->setEstimate(Converter::toSE3Quat(pKFi->GetPose()));
+                        vSE3->setId(pKFi->mnId);
+                        vSE3->setFixed(true);
+                        optimizer.addVertex(vSE3);
+
+                        if (pKFi->mnId > nMaxIdKf)
+                            nMaxIdKf = pKFi->mnId;
+                    }
+                }
+            }
+        }
+    }
+
+    // Look for MapPoints within frame
+    vector<MapPoint*> vpAllMapPoints = pMap->GetAllMapPoints();
+    vector<MapPoint*> vpMPsInFrame;
+
+    Mat mCamRcw = pFrame->Get_mRcw();
+    Mat mCamtcw = pFrame->Get_mtcw();
+
+    double mRcw[3][3];
+    double mtcw[3];
+
+    // Mat to array
+    for (int i=0; i<mCamRcw.rows; i++)
+    {
+        for (int j=0; i<mCamRcw.cols; j++)
+        {
+            Scalar matvalueR = mCamRcw.at<float>(i, j);
+            mRcw[i][j] = matvalueR.val[0];
+        }
+        Scalar matvalueT = mCamtcw.at<float>(i);
+        mtcw[i] = matvalueT.val[0];
+    }
+
+    for(size_t iMP=0; iMP<vpAllMapPoints.size(); iMP++)
+    {
+        MapPoint* pMP = vpAllMapPoints[iMP];
+
+        if (pMP->bSetForReloc)
+            continue;
+
+        if (!isInFrustum(pMP, *pFrame, mRcw, mtcw, 0.5))
+            continue;
+
+        // Restore MP and restore flag's default state
+        vpMPsInFrame.push_back(pMP);
+        fem.vpMPs_ut.push_back(pMP);
+        pMP->bSetForReloc = false;
+    }
+
+    // Restore default state of KF flag
+    for (unsigned int i=0; i<vpFixedKFs.size(); i++)
+        vpFixedKFs[i]->mnBAFixedForReloc = 0;
+
+    // Set MPs matched in the current frame as vertices
+    vector<g2o::EdgeSE3ProjectXYZ*> vpEdges;
+    vector<KeyFrame*> vpEdgeKF;
+    vector<float> vSigmas2;
+    vector<float> vInvSigmas2;
+    vector<size_t> vnIndexEdge;
+    vector<MapPoint*> vpMapPointEdge;
+
+    const int N = pFrame->mvpMapPoints.size();
+    vpEdges.reserve(N);
+    vpEdgeKF.reserve(N);
+    vSigmas2.reserve(N);
+    vInvSigmas2.reserve(N);
+    vnIndexEdge.reserve(N);
+    vpMapPointEdge.reserve(N);
+
+    const float delta = sqrt(5.991);    // thHuber(LocalBundleAdjustment)
+    for (unsigned int i=0; i<vpMapPoints.size(); i++)
+    {
+        MapPoint* pMP = vpMapPoints[i];
+        nMPs++;
+        int id = nMaxIdKf + nMPs;
+
+        g2o::VertexSBAPointXYZ* vPoint = new g2o::VertexSBAPointXYZ();
+        vPoint->setEstimate(Converter::toVector3d(pMP->GetWorldPos()));     // Pasar punto en formato Mat a formato Float
+        vPoint->setId(id);
+        vPoint->setMarginalized(true);
+        optimizer.addVertex(vPoint);                                        // Almacenar punto 3D /vértice/
+        fea.vVertices.push_back(vPoint);
+        nInitialCorrespondences++;                                          // Suma de correspondencias.
+        pFrame->mvbOutlier[i] = false;                                      // Marca el punto como correcto, no outlier.
+
+        // First we set an edge between the MP and the current Frame
+        Eigen::Matrix<double,2,1> obsF;
+        cv::KeyPoint kpUn = vKeysUn[i];
+        obsF << kpUn.pt.x, kpUn.pt.y;                                        // Almacenar punto 2D
+
+        g2o::EdgeSE3ProjectXYZ* e = new g2o::EdgeSE3ProjectXYZ();           // Crear objeto arco
+        e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(id)));       // Vértice 3D almacenado
+        e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(0)));        // Origen
+        e->setMeasurement(obsF);
+        float sigma2 = pFrame->mvLevelSigma2[kpUn.octave];
+        const float invSigma2 = pFrame->mvInvLevelSigma2[kpUn.octave];                              // Desviación según la escala del punto
+        e->setInformation(Eigen::Matrix2d::Identity()*invSigma2);                                   // Formar matriz con la desviación
+
+        g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
+        e->setRobustKernel(rk);
+        rk->setDelta(delta);
+
+        e->fx = pFrame->fx;                         // Camera matrix
+        e->fy = pFrame->fy;
+        e->cx = pFrame->cx;
+        e->cy = pFrame->cy;
+
+        e->setLevel(0);
+
+        optimizer.addEdge(e);                       // Almacenar arco
+
+        vpEdges.push_back(e);
+        vSigmas2.push_back(sigma2);
+        vInvSigmas2.push_back(invSigma2);
+        vnIndexEdge.push_back(i);
+        vpMapPointEdge.push_back(pMP);
+
+        // Then set up edges between the MP and the KFs from which it can be seen
+        map<KeyFrame*,size_t> observations = pMP->GetObservations();
+        for(map<KeyFrame*,size_t>::iterator mit=observations.begin(), mend=observations.end(); mit!=mend; mit++)
+        {
+            KeyFrame* pKFi = mit->first;
+
+            if (pKFi && !pKFi->isBad())
+            {
+                Eigen::Matrix<double,2,1> obs2;
+                cv::KeyPoint kpUn2 = pKFi->GetKeyPointUn(mit->second);
+                obs2 << kpUn2.pt.x, kpUn2.pt.y;
+
+                g2o::EdgeSE3ProjectXYZ* e2 = new g2o::EdgeSE3ProjectXYZ();
+
+                e2->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(id)));
+                e2->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(pKFi->mnId)));
+                e2->setMeasurement(obs2);
+                float sigma22 = pFrame->mvLevelSigma2[kpUn.octave];
+                float invSigma22 = pFrame->mvInvLevelSigma2[kpUn.octave];
+                e2->setInformation(Eigen::Matrix2d::Identity()*invSigma22);
+
+                g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
+                e2->setRobustKernel(rk);
+                rk->setDelta(delta);
+
+                e2->fx = pKFi->fx;
+                e2->fy = pKFi->fy;
+                e2->cx = pKFi->cx;
+                e2->cy = pKFi->cy;
+
+                e2->setLevel(0);
+
+                optimizer.addEdge(e2);
+
+                vpEdges.push_back(e2);
+                vpEdgeKF.push_back(pKFi);
+                vSigmas2.push_back(sigma22);
+                vInvSigmas2.push_back(invSigma22);
+                vnIndexEdge.push_back(i);
+                vpMapPointEdge.push_back(pMP);
+            }
+        }
+    }
+
+    if(nInitialCorrespondences<3)
+    {
+        cout << "        NLO- InitialCorrespondences(" << nInitialCorrespondences << ")  NOK(n<3)  Return0" << endl;
+        return 0;
+    }
+    cout << "        NLO- InitialCorrespondences(" << nInitialCorrespondences << ")  OK" << endl;
+
+
+
+    /// MESH BUILDING - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    cout << "        NLO- Setting FEA" << endl;
+    if(fem.Compute(1))      // Compute matched
+    {
+        fem.ReadyFEA(pFEA,1);
+
+        fea.u0 = fem.GetU0();
+        fea.vMPsXYZN_t  = fem.GetPointsL1();
+        fea.vMPsXYZN_t2 = fem.GetPointsL2();
+
+        fea.Ksize = fem.GetKsize();
+        fea.K = fem.GetK();
+
+        // Draw the mesh
+        pMap->vpMPs2Draw = fem.vpMPs2Draw;
+        pFrameDrawer->vpKPs2Draw = fem.vpKPs2Draw;
+        pFrameDrawer->vpMPs2Draw = fem.vpMPs2Draw;
+
+        //if (bUseInverse)
+        //    fem.Compute(2);
+    }
+    else
+        return 0;
+
+
+
+    /// NON-LINEAR OPTIMIZATION - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    // We perform 4 optimizations, after each optimization we classify observation as inlier/outlier
+    // At the next optimization, outliers are not included, but at the end they can be classified as inliers again.
+    const float chi2[4]={5.991,5.991,5.991,5.991};
+    const int its[4]={10,10,10,10};
+
+    int nBad=0;
+    for(size_t it=0; it<4; it++)
+    {
+        optimizer.initializeOptimization(0);
+
+        cout << "        NLO- optimize(" << it << ")" << endl;
+        if (it==0)
+            fea.it0 = true;
+        else
+            fea.it0 = false;
+
+        optimizer.optimize(its[it]);
+
+        nBad=0;
+        for(size_t i=0, iend=vpEdges.size(); i<iend; i++)
+        {
+            g2o::EdgeSE3ProjectXYZ* e = vpEdges[i];
+
+            const size_t idx = vnIndexEdge[i];
+            MapPoint* pMP = vpMapPointEdge[i];
+            if (!pMP)
+                continue;
+
+            if(pFrame->mvbOutlier[idx])
+                e->computeError();
+            if (pMP->isBad())
+                continue;
+
+            if(e->chi2()>chi2[it])
+            {
+                pFrame->mvbOutlier[idx]=true;
+                e->setLevel(1);
+                if (pMP->bRelocCheck==true)
+                {
+                    nBad++;
+                    pMP->bRelocCheck=false;
+                }
+            }
+            else if(e->chi2()<=chi2[it])
+            {
+                pFrame->mvbOutlier[idx]=false;
+                e->setLevel(0);
+                if (pMP->bRelocCheck==false)
+                {
+                    pMP->bRelocCheck = true;
+                    nBad--;
+                }
+            }
+        }
+        //cout << "        NLO- Optimization(" << it+1 << "/4)  chi2(" << chi2[it] << ")  its(" << its[it] << ")  Correspondences(" << nInitialCorrespondences-nBad << ")" << endl;
+    }
+
+    // Restore default state of MP flag
+    for (unsigned int i=0; i<vpMapPointEdge.size(); i++)
+    {
+        MapPoint* pMP = vpMapPointEdge[i];
+        if (pMP)
+            pMP->bRelocCheck = true;
+    }
+
+
+    // Recover optimized pose and return number of inliers
+    g2o::VertexSE3Expmap* vSE3_recov = static_cast<g2o::VertexSE3Expmap*>(optimizer.vertex(0));
+    g2o::SE3Quat SE3quat_recov = vSE3_recov->estimate();
+    cv::Mat pose = Converter::toCvMat(SE3quat_recov);
+    pFrame->SetPose(pose);
+
+    return nInitialCorrespondences-nBad;
+}
+
+
 void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap)
-{    
+{
     // Local KeyFrames: First Breath Search from Current Keyframe
     list<KeyFrame*> lLocalKeyFrames;
 
@@ -495,7 +879,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap
             KeyFrame* pKFi = mit->first;
 
             if(pKFi->mnBALocalForKF!=pKF->mnId && pKFi->mnBAFixedForKF!=pKF->mnId)
-            {                
+            {
                 pKFi->mnBAFixedForKF=pKF->mnId;
                 if(!pKFi->isBad())
                     lFixedCameras.push_back(pKFi);
@@ -587,7 +971,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap
             KeyFrame* pKFi = mit->first;
 
             if(!pKFi->isBad())
-            {                
+            {
                 const cv::KeyPoint &kpUn = pKFi->mvKeysUn[mit->second];
 
                 // Monocular observation
@@ -711,7 +1095,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap
     vector<pair<KeyFrame*,MapPoint*> > vToErase;
     vToErase.reserve(vpEdgesMono.size()+vpEdgesStereo.size());
 
-    // Check inlier observations       
+    // Check inlier observations
     for(size_t i=0, iend=vpEdgesMono.size(); i<iend;i++)
     {
         g2o::EdgeSE3ProjectXYZ* e = vpEdgesMono[i];
@@ -1066,7 +1450,7 @@ int Optimizer::OptimizeSim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &
     const cv::Mat t2w = pKF2->GetTranslation();
 
     // Set Sim3 vertex
-    g2o::VertexSim3Expmap * vSim3 = new g2o::VertexSim3Expmap();    
+    g2o::VertexSim3Expmap * vSim3 = new g2o::VertexSim3Expmap();
     vSim3->_fix_scale=bFixScale;
     vSim3->setEstimate(g2oS12);
     vSim3->setId(0);
@@ -1238,6 +1622,116 @@ int Optimizer::OptimizeSim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &
     g2oS12= vSim3_recov->estimate();
 
     return nIn;
+}
+
+
+bool Optimizer::isInFrustum(MapPoint *pMP, Frame &mFr, double mRcw[3][3], double mtcw[3], float viewingCosLimit)
+{
+    // 3D in absolute coordinates
+    cv::Mat P = pMP->GetWorldPos();
+    float ptX = P.at<float>(0);
+    float ptY = P.at<float>(1);
+    float ptZ = P.at<float>(2);
+    double Pt[] = {ptX, ptY, ptZ};
+
+    // Affine coordinates of the 3D points in the camera coordinate system
+    float PcX = mRcw[0][0]*ptX + mRcw[0][1]*ptY + mRcw[0][2]*ptZ + mtcw[0];
+    float PcY = mRcw[1][0]*ptX + mRcw[1][1]*ptY + mRcw[1][2]*ptZ + mtcw[1];
+    float PcZ = mRcw[2][0]*ptX + mRcw[2][1]*ptY + mRcw[2][2]*ptZ + mtcw[2];
+
+    // Check positive depth
+    if(PcZ<0.0)
+        return false;
+
+    // Project in image and check it is not outside
+    const float invz = 1.0/PcZ;
+    const float u=mFr.fx*PcX*invz+mFr.cx;
+    const float v=mFr.fy*PcY*invz+mFr.cy;
+
+    // Compute image bounds and check
+    vector<int> imBounds;
+    imBounds = mFr.GetImageBounds();    // imbounds[minX, maxX, minY, maxY]
+
+    if(u<imBounds[0] || u>imBounds[1])
+        return false;
+    if(v<imBounds[2] || v>imBounds[3])
+        return false;
+
+    // Check distance is in the scale invariance region of the MapPoint
+    const float maxDistance = pMP->GetMaxDistanceInvariance();
+    const float minDistance = pMP->GetMinDistanceInvariance();
+    //const Mat mOw = -mRcw.t()*mtcw;
+    //const Mat PO = P-mOw;
+    //const float dist = cv::norm(PO);
+    double PO[3];
+    const float dist = ComputeDistance(mRcw, mtcw, Pt, PO);
+
+    if(dist<(0.9*minDistance) || dist>(maxDistance/0.9))
+        return false;
+
+   // Check viewing angle
+    cv::Mat Pn = pMP->GetNormal();
+    float pn[] = {Pn.at<float>(0),Pn.at<float>(1),Pn.at<float>(2)};
+    float viewCos = PO[0]*pn[0] + PO[1]*pn[1] + PO[2]*pn[2];
+    viewCos = viewCos/dist;
+
+    if(viewCos<viewingCosLimit)
+        return false;
+
+    // Predict scale level acording to the distance
+    float ratio = dist/minDistance;
+
+    vector<float>::iterator it = lower_bound(mFr.mvScaleFactors.begin(), mFr.mvScaleFactors.end(), ratio);
+    int nPredictedLevel = it-mFr.mvScaleFactors.begin();
+
+    if(nPredictedLevel>=mFr.mnScaleLevels)
+        nPredictedLevel=mFr.mnScaleLevels-1;
+
+    pMP->mRelocProjX = u;
+    pMP->mRelocProjY = v;
+    pMP->mnRelocScaleLevel = nPredictedLevel;
+    pMP->mRelocViewCos = viewCos;
+
+    return true;
+}
+
+
+double Optimizer::ComputeDistance(double R[3][3], double t[3], double pt[3], double po[3])
+{
+    double Rt[3][3];
+
+	Rt[0][0] = (-1)*R[0][0];
+	Rt[1][0] = (-1)*R[0][1];
+	Rt[2][0] = (-1)*R[0][2];
+
+	Rt[0][1] = (-1)*R[1][0];
+	Rt[1][1] = (-1)*R[1][1];
+	Rt[2][1] = (-1)*R[1][2];
+
+	Rt[0][2] = (-1)*R[2][0];
+	Rt[1][2] = (-1)*R[2][1];
+	Rt[2][2] = (-1)*R[2][2];
+
+	double Rtt[3];
+
+	Rtt[0] = Rt[0][0]*t[0] + Rt[0][1]*t[1] + Rt[0][2]*t[2];
+	Rtt[1] = Rt[1][0]*t[0] + Rt[1][1]*t[1] + Rt[1][2]*t[2];
+	Rtt[2] = Rt[2][0]*t[0] + Rt[2][1]*t[1] + Rt[2][2]*t[2];
+
+	double PO[3];
+
+	PO[0] = pt[0] - Rtt[0];
+	PO[1] = pt[1] - Rtt[1];
+	PO[2] = pt[2] - Rtt[2];
+
+	for (unsigned int i=0; i<3; i++){
+        po[i] = PO[i];
+	}
+
+    double normSum = PO[0]*PO[0] + PO[1]*PO[1] + PO[2]*PO[2];
+    double norm = sqrt(normSum);
+
+    return norm;
 }
 
 

@@ -1,0 +1,73 @@
+kfcan	acc15	acc4 	nInl 	tPnP 	nAdd 	1okR 	1okNR	tS1  	1okR 	1okNR	tS2  	1okR 	1okNR	tS3  	final	ress 	
+
+
+It 1
+kfcan	acc15	acc4 	nInl 	tPnP 	nAdd 	1okR 	1okNR	tS1  	1okR 	1okNR	tS2  	1okR 	1okNR	tS3  	final	ress 	
+
+1	0	1	0	0.00052429	
+ 	 	 	111	
+
+
+It 2
+kfcan	acc15	acc4 	nInl 	tPnP 	nAdd 	1okR 	1okNR	tS1  	1okR 	1okNR	tS2  	1okR 	1okNR	tS3  	final	ress 	
+
+1	0	1	0	0.00039322	
+ 	 	 	111	
+
+
+It 3
+kfcan	acc15	acc4 	nInl 	tPnP 	nAdd 	1okR 	1okNR	tS1  	1okR 	1okNR	tS2  	1okR 	1okNR	tS3  	final	ress 	
+
+1	0	1	107	0.39715	2	23	69	0.45076	69	222	
+
+
+It 4
+kfcan	acc15	acc4 	nInl 	tPnP 	nAdd 	1okR 	1okNR	tS1  	1okR 	1okNR	tS2  	1okR 	1okNR	tS3  	final	ress 	
+
+1	0	1	0	0.00026214	
+ 	 	 	111	
+
+
+It 5
+kfcan	acc15	acc4 	nInl 	tPnP 	nAdd 	1okR 	1okNR	tS1  	1okR 	1okNR	tS2  	1okR 	1okNR	tS3  	final	ress 	
+
+1	0	1	53	1.1312	4	33	47	0.36399	98	127	1.7173	127	222	
+
+
+It 6
+kfcan	acc15	acc4 	nInl 	tPnP 	nAdd 	1okR 	1okNR	tS1  	1okR 	1okNR	tS2  	1okR 	1okNR	tS3  	final	ress 	
+
+1	0	0	111	
+
+
+It 7
+kfcan	acc15	acc4 	nInl 	tPnP 	nAdd 	1okR 	1okNR	tS1  	1okR 	1okNR	tS2  	1okR 	1okNR	tS3  	final	ress 	
+
+1	0	1	0	0.00039322	
+ 	 	 	111	
+
+
+It 8
+kfcan	acc15	acc4 	nInl 	tPnP 	nAdd 	1okR 	1okNR	tS1  	1okR 	1okNR	tS2  	1okR 	1okNR	tS3  	final	ress 	
+
+1	0	1	0	0.75183	0	0	0	0.0019661	
+ 	 	 	111	
+
+
+It 9
+kfcan	acc15	acc4 	nInl 	tPnP 	nAdd 	1okR 	1okNR	tS1  	1okR 	1okNR	tS2  	1okR 	1okNR	tS3  	final	ress 	
+
+1	0	1	66	0.40213	2	1	47	0.17564	4	31	0.060424	
+ 	 	 	111	
+
+
+It 10
+kfcan	acc15	acc4 	nInl 	tPnP 	nAdd 	1okR 	1okNR	tS1  	1okR 	1okNR	tS2  	1okR 	1okNR	tS3  	final	ress 	
+
+1	0	1	38	0.40645	2	25	36	0.068026	109	139	1.9383	139	222	
+
+
+It 11
+kfcan	acc15	acc4 	nInl 	tPnP 	nAdd 	1okR 	1okNR	tS1  	1okR 	1okNR	tS2  	1okR 	1okNR	tS3  	final	ress 	
+
+1	1	1	12	0.39413	12	57	74	0.3729	74	222	

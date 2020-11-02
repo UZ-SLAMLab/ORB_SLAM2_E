@@ -52,8 +52,10 @@
 #define PNPSOLVER_H
 
 #include <opencv2/core/core.hpp>
+#include <opencv2/opencv.hpp>
 #include "MapPoint.h"
 #include "Frame.h"
+#include "Statistics.h"
 
 namespace ORB_SLAM2
 {
@@ -70,11 +72,13 @@ class PnPsolver {
   cv::Mat find(vector<bool> &vbInliers, int &nInliers);
 
   cv::Mat iterate(int nIterations, bool &bNoMore, vector<bool> &vbInliers, int &nInliers);
+  cv::Mat iterate(Frame &rF, vector<MapPoint*> &vpMapPointMatches, int nIterations, bool &bNoMore, vector<bool> &vbInliers, int &nInliers, Map* pMap, Statistics* pStats1);
 
  private:
 
   void CheckInliers();
   bool Refine();
+  int RefineProjected(vector<MapPoint*> vMatchedMPs, vector<cv::KeyPoint> vMatchedKPs, vector<bool> vbMatched, cv::Mat mPrRi, cv::Mat mPrti);
 
   // Functions from the original EPnP code
   void set_maximum_number_of_correspondences(const int n);

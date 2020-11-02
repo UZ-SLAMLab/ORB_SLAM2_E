@@ -1,0 +1,16 @@
+<launch>
+
+   <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen" >
+	<param name="video_device" value="/dev/video1" />
+   	<param name="image_width" value="1024" />
+    	<param name="image_height" value="768" />
+    	<param name="pixel_format" value="yuyv" />
+    	<param name="camera_frame_id" value="camera" />
+    	<param name="io_method" value="mmap"/>
+    	<remap from="/usb_cam/image_raw" to="/camera/image_raw" />
+  	</node>
+
+   <node pkg="ORB_SLAM2" type="Mono" name="ORB_SLAM2"  args="../../../Vocabulary/ORBvoc.txt ../../../roslaunch/Settings_Cam.yaml" cwd="node" output="screen">
+	</node>
+
+</launch>

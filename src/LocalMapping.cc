@@ -158,7 +158,7 @@ void LocalMapping::ProcessNewKeyFrame()
                 }
             }
         }
-    }    
+    }
 
     // Update links in the Covisibility Graph
     mpCurrentKeyFrame->UpdateConnections();
@@ -169,6 +169,13 @@ void LocalMapping::ProcessNewKeyFrame()
 
 void LocalMapping::MapPointCulling()
 {
+    // Account for the number of MPs eliminated in 3 KFs since creation
+    nKf1C1 = 0;
+    nKf2C1 = 0; nKf2C2 = 0;
+    nKf3C1 = 0; nKf3C2 = 0;
+
+    nKf1BA = 0; nKf2BA = 0; nKf3BA = 0;
+
     // Check Recent Added MapPoints
     list<MapPoint*>::iterator lit = mlpRecentAddedMapPoints.begin();
     const unsigned long int nCurrentKFid = mpCurrentKeyFrame->mnId;
@@ -183,29 +190,66 @@ void LocalMapping::MapPointCulling()
     while(lit!=mlpRecentAddedMapPoints.end())
     {
         MapPoint* pMP = *lit;
+        pMP->MPage++;
+        int age = pMP->MPage;
         if(pMP->isBad())
         {
             lit = mlpRecentAddedMapPoints.erase(lit);
+
+            if (age==1) nKf1BA++;
+            if (age==2) nKf2BA++;
+            if (age==3) nKf3BA++;
         }
         else if(pMP->GetFoundRatio()<0.25f )
         {
+            pMP->iDelCond = 1;
+            pMP->bNewMP = false;
+
             pMP->SetBadFlag();
             lit = mlpRecentAddedMapPoints.erase(lit);
+
+            if (age==1) nKf1C1++;
+            if (age==2) nKf2C1++;
+            if (age==3) nKf3C1++;
         }
         else if(((int)nCurrentKFid-(int)pMP->mnFirstKFid)>=2 && pMP->Observations()<=cnThObs)
         {
+            pMP->iDelCond = 2;
+            pMP->bNewMP = false;
+
             pMP->SetBadFlag();
             lit = mlpRecentAddedMapPoints.erase(lit);
+
+            if (age==2) nKf2C2++;
+            if (age==3) nKf3C2++;
         }
         else if(((int)nCurrentKFid-(int)pMP->mnFirstKFid)>=3)
+        {
+            pMP->bNewMP = false;
             lit = mlpRecentAddedMapPoints.erase(lit);
+        }
         else
             lit++;
     }
+
+    nMPsCulledBA = nKf1BA + nKf2BA + nKf3BA;
+
+    nMPsCulledC1 = nKf1C1 + nKf2C1 + nKf3C1;
+    nMPsCulledC2 = nKf2C2 + nKf3C2;
+
+    nMPsCulled = nMPsCulledBA + nMPsCulledC1 + nMPsCulledC2;
 }
 
 void LocalMapping::CreateNewMapPoints()
 {
+    // Set variables for accounting the created/rejected MPs
+    nBaselineRejects = 0;
+    nTriangulationRejects = 0;
+    nParalaxRejects = 0;
+    nRepErrorRejects = 0;
+    nScaleConsRejects = 0;
+    nDepthRejects = 0;
+
     // Retrieve neighbor keyframes in covisibility graph
     int nn = 10;
     if(mbMonocular)
@@ -230,6 +274,10 @@ void LocalMapping::CreateNewMapPoints()
     const float &invfy1 = mpCurrentKeyFrame->invfy;
 
     const float ratioFactor = 1.5f*mpCurrentKeyFrame->mfScaleFactor;
+
+    // Record the reason for rejecting the pair of KPs
+    // vpKPsRejects.clear();
+    // viKPsRejectsReason.clear();
 
     int nnew=0;
 
@@ -256,8 +304,11 @@ void LocalMapping::CreateNewMapPoints()
             const float medianDepthKF2 = pKF2->ComputeSceneMedianDepth(2);
             const float ratioBaselineDepth = baseline/medianDepthKF2;
 
-            if(ratioBaselineDepth<0.01)
+            if(ratioBaselineDepth<0.05)
+            {
+                nBaselineRejects++;
                 continue;
+            }
         }
 
         // Compute Fundamental Matrix
@@ -316,7 +367,7 @@ void LocalMapping::CreateNewMapPoints()
             cosParallaxStereo = min(cosParallaxStereo1,cosParallaxStereo2);
 
             cv::Mat x3D;
-            if(cosParallaxRays<cosParallaxStereo && cosParallaxRays>0 && (bStereo1 || bStereo2 || cosParallaxRays<0.9998))
+            if(cosParallaxRays<cosParallaxStereo && cosParallaxRays>0 && (bStereo1 || bStereo2 || cosParallaxRays<0.9997))
             {
                 // Linear Triangulation Method
                 cv::Mat A(4,4,CV_32F);
@@ -331,7 +382,10 @@ void LocalMapping::CreateNewMapPoints()
                 x3D = vt.row(3).t();
 
                 if(x3D.at<float>(3)==0)
+                {
+                    nTriangulationRejects++;
                     continue;
+                }
 
                 // Euclidean coordinates
                 x3D = x3D.rowRange(0,3)/x3D.at<float>(3);
@@ -339,25 +393,34 @@ void LocalMapping::CreateNewMapPoints()
             }
             else if(bStereo1 && cosParallaxStereo1<cosParallaxStereo2)
             {
-                x3D = mpCurrentKeyFrame->UnprojectStereo(idx1);                
+                x3D = mpCurrentKeyFrame->UnprojectStereo(idx1);
             }
             else if(bStereo2 && cosParallaxStereo2<cosParallaxStereo1)
             {
                 x3D = pKF2->UnprojectStereo(idx2);
             }
             else
+            {
+                nParalaxRejects++;
                 continue; //No stereo and very low parallax
+            }
 
             cv::Mat x3Dt = x3D.t();
 
             //Check triangulation in front of cameras
             float z1 = Rcw1.row(2).dot(x3Dt)+tcw1.at<float>(2);
             if(z1<=0)
+            {
+                nDepthRejects++;
                 continue;
+            }
 
             float z2 = Rcw2.row(2).dot(x3Dt)+tcw2.at<float>(2);
             if(z2<=0)
+            {
+                nDepthRejects++;
                 continue;
+            }
 
             //Check reprojection error in first keyframe
             const float &sigmaSquare1 = mpCurrentKeyFrame->mvLevelSigma2[kp1.octave];
@@ -371,8 +434,11 @@ void LocalMapping::CreateNewMapPoints()
                 float v1 = fy1*y1*invz1+cy1;
                 float errX1 = u1 - kp1.pt.x;
                 float errY1 = v1 - kp1.pt.y;
-                if((errX1*errX1+errY1*errY1)>5.991*sigmaSquare1)
+                if((errX1*errX1+errY1*errY1)>0.5991*sigmaSquare1)
+                {
+                    nRepErrorRejects++;
                     continue;
+                }
             }
             else
             {
@@ -383,7 +449,10 @@ void LocalMapping::CreateNewMapPoints()
                 float errY1 = v1 - kp1.pt.y;
                 float errX1_r = u1_r - kp1_ur;
                 if((errX1*errX1+errY1*errY1+errX1_r*errX1_r)>7.8*sigmaSquare1)
+                {
+                    nRepErrorRejects++;
                     continue;
+                }
             }
 
             //Check reprojection error in second keyframe
@@ -397,7 +466,7 @@ void LocalMapping::CreateNewMapPoints()
                 float v2 = fy2*y2*invz2+cy2;
                 float errX2 = u2 - kp2.pt.x;
                 float errY2 = v2 - kp2.pt.y;
-                if((errX2*errX2+errY2*errY2)>5.991*sigmaSquare2)
+                if((errX2*errX2+errY2*errY2)>0.5991*sigmaSquare2)
                     continue;
             }
             else
@@ -425,15 +494,16 @@ void LocalMapping::CreateNewMapPoints()
             const float ratioDist = dist2/dist1;
             const float ratioOctave = mpCurrentKeyFrame->mvScaleFactors[kp1.octave]/pKF2->mvScaleFactors[kp2.octave];
 
-            /*if(fabs(ratioDist-ratioOctave)>ratioFactor)
-                continue;*/
             if(ratioDist*ratioFactor<ratioOctave || ratioDist>ratioOctave*ratioFactor)
+            {
+                nScaleConsRejects++;
                 continue;
+            }
 
             // Triangulation is succesfull
             MapPoint* pMP = new MapPoint(x3D,mpCurrentKeyFrame,mpMap);
 
-            pMP->AddObservation(mpCurrentKeyFrame,idx1);            
+            pMP->AddObservation(mpCurrentKeyFrame,idx1);
             pMP->AddObservation(pKF2,idx2);
 
             mpCurrentKeyFrame->AddMapPoint(pMP,idx1);
@@ -449,6 +519,8 @@ void LocalMapping::CreateNewMapPoints()
             nnew++;
         }
     }
+
+    bDataToSave = true;
 }
 
 void LocalMapping::SearchInNeighbors()
@@ -688,7 +760,7 @@ void LocalMapping::KeyFrameCulling()
                     }
                 }
             }
-        }  
+        }
 
         if(nRedundantObservations>0.9*nMPs)
             pKF->SetBadFlag();
@@ -746,7 +818,7 @@ bool LocalMapping::CheckFinish()
 void LocalMapping::SetFinish()
 {
     unique_lock<mutex> lock(mMutexFinish);
-    mbFinished = true;    
+    mbFinished = true;
     unique_lock<mutex> lock2(mMutexStop);
     mbStopped = true;
 }
@@ -755,6 +827,41 @@ bool LocalMapping::isFinished()
 {
     unique_lock<mutex> lock(mMutexFinish);
     return mbFinished;
+}
+
+void LocalMapping::SaveDataInFrame(Frame *pFrame)
+{
+    // - MP creation data - - - - - - - - - - -
+    pFrame->SourceKfId = mpCurrentKeyFrame->mnId;
+
+    pFrame->vnRejects[0] = nTriangulationRejects;
+    pFrame->vnRejects[1] = nParalaxRejects;
+    pFrame->vnRejects[2] = nRepErrorRejects;
+    pFrame->vnRejects[3] = nScaleConsRejects;
+    pFrame->vnRejects[4] = nDepthRejects;
+    pFrame->vnRejects[5] = nBaselineRejects;
+    // - MP creation data - - - - - - - - - - -
+
+
+    // - MP culling data - - - - - - - - - - -
+    pFrame->nMPsCulled = nMPsCulled;
+
+    pFrame->nMPsCulledBA = nMPsCulledBA;
+    pFrame->nKf1BA = nKf1BA;
+    pFrame->nKf2BA = nKf2BA;
+    pFrame->nKf3BA = nKf3BA;
+
+    pFrame->nMPsCulledC1 = nMPsCulledC1;
+    pFrame->nKf1C1 = nKf1C1;
+    pFrame->nKf2C1 = nKf2C1;
+    pFrame->nKf3C1 = nKf3C1;
+
+    pFrame->nMPsCulledC2 = nMPsCulledC2;
+    pFrame->nKf2C2 = nKf2C2;
+    pFrame->nKf3C2 = nKf3C2;
+    // - MP culling data - - - - - - - - - - -
+
+    bDataToSave = false;
 }
 
 } //namespace ORB_SLAM

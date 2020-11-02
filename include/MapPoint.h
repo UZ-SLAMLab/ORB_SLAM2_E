@@ -39,6 +39,7 @@ class Frame;
 class MapPoint
 {
 public:
+    MapPoint();
     MapPoint(const cv::Mat &Pos, KeyFrame* pRefKF, Map* pMap);
     MapPoint(const cv::Mat &Pos,  Map* pMap, Frame* pFrame, const int &idxF);
 
@@ -50,9 +51,12 @@ public:
 
     std::map<KeyFrame*,size_t> GetObservations();
     int Observations();
+    void ClearObservations();
 
     void AddObservation(KeyFrame* pKF,size_t idx);
+    void AddObservationLoadMap(KeyFrame* pKF,size_t idx);
     void EraseObservation(KeyFrame* pKF);
+    void EraseObservationLoadMap(KeyFrame* pKF, size_t idx);
 
     int GetIndexInKeyFrame(KeyFrame* pKF);
     bool IsInKeyFrame(KeyFrame* pKF);
@@ -60,7 +64,7 @@ public:
     void SetBadFlag();
     bool isBad();
 
-    void Replace(MapPoint* pMP);    
+    void Replace(MapPoint* pMP);
     MapPoint* GetReplaced();
 
     void IncreaseVisible(int n=1);
@@ -80,6 +84,11 @@ public:
     float GetMaxDistanceInvariance();
     int PredictScale(const float &currentDist, KeyFrame*pKF);
     int PredictScale(const float &currentDist, Frame* pF);
+
+    void RecordObservers();
+    void GetObservers(vector<int> &vGetObs);
+
+    void UpdateData(Map *pMap, vector<int> &Ids, vector<int> &KfIds, vector<int> &vnObservers);
 
 public:
     long unsigned int mnId;
@@ -105,14 +114,35 @@ public:
     // Variables used by loop closing
     long unsigned int mnLoopPointForKF;
     long unsigned int mnCorrectedByKF;
-    long unsigned int mnCorrectedReference;    
+    long unsigned int mnCorrectedReference;
     cv::Mat mPosGBA;
     long unsigned int mnBAGlobalForKF;
 
+    // Variables used for relocalization
+    float mRelocProjX;
+    float mRelocProjY;
+    int mnRelocScaleLevel;
+    float mRelocViewCos;
+    bool bRelocCheck;
+
+    // Variables used for tracking evaluation
+    //bool bWithinFrame;
+    int MPage;
+    bool bNewMP;
+    int iDelCond;
+
+    bool bFlagRigid;
+    bool bFlagNonRigid;
 
     static std::mutex mGlobalMutex;
 
-protected:    
+
+    unsigned int nObsCounter = 0;
+    int vvvnObservations[1000][3];
+
+    bool bSetForReloc = false;
+
+protected:
 
      // Position in absolute coordinates
      cv::Mat mWorldPos;
@@ -145,6 +175,9 @@ protected:
 
      std::mutex mMutexPos;
      std::mutex mMutexFeatures;
+
+     // Saved data
+     int vnKfObs[20];
 };
 
 } //namespace ORB_SLAM
