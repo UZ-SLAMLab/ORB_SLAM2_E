@@ -478,14 +478,11 @@ int Optimizer::PoseOptimization(Frame *pFrame)
 int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer)
 {
     // Simulation parameters & Model constants
-    bool bGo = false;
     bool bDebug = true;
-    bool bRegMesh = true;
-    bool bWUnknown = false;
-    const unsigned int in_E = 1100; //18000;
-    const float in_nu = 0.4999;
+    const unsigned int in_E = 3500;
+    const float in_nu = 0.495;
     const float in_h = 0.5;
-    const float in_fg1 = 0.5773503;
+    const float in_fg1 = 0.577350269;
 
     FEM fem(pFrame->mnId,in_E,in_nu,in_h,in_fg1,bDebug);
     FEA fea(pFrame->mnId,in_E,in_nu,in_h,in_fg1,bDebug);

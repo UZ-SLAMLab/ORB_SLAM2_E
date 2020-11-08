@@ -48,12 +48,15 @@
 #include <iostream>
 #include <vector>
 #include <math.h>
+#include <fstream>
+#include <thread>
 
 #include "MapPoint.h"
 #include "Thirdparty/g2o/g2o/FEA/include/FEA.h"
 
 // OPENCV LIBRARIES
 #include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 // PCL LIBRARIES
 #include <pcl/io/pcd_io.h>
@@ -80,109 +83,56 @@
 #include <algorithm>
 #include <pcl/visualization/vtk.h>
 
-
 using namespace std;
 using namespace pcl;
 
 namespace ORB_SLAM2
 {
-
-
 class FEM
 {
 public:	// FUNCTIONS
 
-	//Constructor
+	// Constructor & Destructor
 	FEM(unsigned int input_nFrameId, unsigned int input_E, float input_nu, float input_h, float input_fg1, bool bSetDebug);
-    //FEM(unsigned int input_nFrameId, unsigned int input_E, float input_nu, bool bSetDebug);
-
-    //Destructor
     ~FEM();
 
+    // Build mesh and compute K
     bool Compute(int nMode);
 
     // Get coordinates and normals from MapPoints
     void GetMapPointCoordinates(int nMode);
 
     // Load MapPoints into cloud
-    bool LoadMPsIntoCloud();
     bool LoadMPsIntoCloud(int nMode);
-    bool LoadTrackedMPsIntoCloud();
-    bool LoadUnTrackedMPsIntoCloud();
-
 
     // Moving Least Squares
-    bool MLS();
     bool MLS(int nMode);
-    bool MLS_t();
-    bool MLS_ut();
 
     // Triangulation, greedy projection (meshing)
-    bool ComputeMesh();
     bool ComputeMesh(int nMode);
-    bool ComputeMesh_t();
 
     void CalculateGP3Parameters(pcl::PointCloud<pcl::PointNormal>::Ptr ppc, int *pnInMu, int *pnSearchRad, int *pnMaxNeig, int *pnSurAng, int *pnMinAng, int *pnMaxAng);
 
-    // Get mesh connections
-    void GetMeshConnections();
-    void GetMeshConnections_t();
-    void GetMeshConnections_ut();
-
-    /// tri2quad
-    // Turns a triangle mesh into a quadrilateral mesh
+    // Turns a triangle mesh into a quadrilateral mesh, 1 tri = 3 quads
     // The function adds a node in the middle of each side of the original triangle, and an extra node in the ortocenter.
-    // Therefore each triangle is converted into 3 quadrilaterals.
-    /*void tri2quad();*/
-    void tri2quad(vector<vector<int> > triangles, vector<bool> vbMPsActive, vector<int> vinindices, vector<vector<int> > vIdxNewVertices, vector<vector<int> > quads, vector<vector<int> > vNewPointsBase, vector<vector<float> > vMPsXYZN);
     void tri2quad(int nMode);
     void tri2quad_t();
     void tri2quad_u();
-    void tri2quad_ut();
 
-
-    /// SaveQuadMesh
-    // Saves the quad mesh into a vtk file for offline use.
-    void SaveQuadMesh_t();
-
-
-    /// SetSecondLayer
-    // Duplicates the previously generated mesh at a certain distance, generating a second layer similar to the original
-    // one but placed at a distance, allowing for the construction of a 3D structure.
-    //void SetSecondLayer();
-    // Generates a second layer from both matched and unmatched map points.
-    void SetSecondLayer_t();
-    // Generates a second layer from the matched points.
-    //void SetSecondLayer_ut();
-    // Generates a second layer from the unmatched points.
+    // Duplicates the previously generated mesh at a distance, builds a 3D structure.
     void SetSecondLayer(int nMode);
-
-
-
 
     void ReadyFEA(FEA* pFEA, int nMode);
 
-
-    void PrintBehaviorMatrix();
-
-    void SetGaussLegendre (float input_fg1, float input_fg2);
-    void SetElementDepth (float input_h);
-
-    vector<vector<float> > GetKe();
-
-    //float AproxFunction(int i, int j, float y1, float y2, float y3, float z2, float z3, float h, float Xi, float Eta, float Zeta);
     vector<vector<float> > ComputeKei(vector<vector<float> > vfPts);
 
-
-    bool MatrixAssembly();
     bool MatrixAssembly(int nMode);
-    void MatrixAssembly_ut();
 
-    float ComputeDet(vector<vector<float> > Kin);
+    void ImposeDirichletEncastre(vector<vector<int> > vD, float Klarge);
 
-    bool ComputeK1();
+    vector<vector<float> > InvertMatrixEigen(vector<vector<float> > m1);
+    vector<vector<float> > MultiplyMatricesEigen(vector<vector<float> > m1, vector<vector<float> > m2);
 
-    void Set_u0(vector<MapPoint*> vpMPs);
     void Set_u0(vector<MapPoint*> vpMPs, int nMode);
 
     void Set_uf(vector<MapPoint*> vpMPs);
@@ -191,15 +141,8 @@ public:	// FUNCTIONS
 
     void ComputeForces(); // K·a = f
 
-    void SetForces();
-
-    void ComputeUnknownDisplacements();
-
-    void ComputeStrainEnergy();
-
     // Access functions
     float GetStrainEnergy();
-    float GetH();
     vector<vector<float> > GetK();
     vector<vector<int> > GetTrianglesT();
     vector<vector<int> > GetQuadsT();
@@ -211,11 +154,8 @@ public:	// FUNCTIONS
     int GetKsize();
     vector<long unsigned int> GetMPsGlobalID();
 
-
-
 public:	// VARIABLES
 
-	// Tracked MapPoints
     vector<MapPoint*> vpMPs_t;
     vector<MapPoint*> vpMPs_ut;
     vector<cv::KeyPoint*> vpKPs_t;
@@ -223,12 +163,8 @@ public:	// VARIABLES
     // IndexTrackedMpInFEM - IndexTrackedMpInFrame
     vector<int> idxMpF;
 
-    //MapPoint coordinates and normals
     vector<vector<float> > vMPsXYZN_t;
     vector<vector<float> > vMPsXYZN_t2;
-
-    vector<long unsigned int> vMPsGlobalID_t;
-    vector<long unsigned int> vMPsGlobalID_u;
 
     vector<vector<float> > vMPsXYZN_ut;
     vector<vector<float> > vMPsXYZN_ut2;
@@ -241,7 +177,6 @@ public:	// VARIABLES
     bool bEInverse = false;
 
 
-
 private:
 
     // Set MapPoints as active or not
@@ -251,84 +186,48 @@ private:
     // Staring PointCloud
     pcl::PointCloud<pcl::PointXYZ> pc_t_0;
     pcl::PointCloud<pcl::PointXYZ> pc_u_0;
-    pcl::PointCloud<pcl::PointNormal> cloudUnTracked;
-    string pcPath_t = "output/PointClouds/pc_t_f";
-    string pcPath_ut = "output/PointClouds/pc_ut_f";
 
     // Smoothed PointCloud (MLS)
     pcl::PointCloud<pcl::PointNormal> pc_t_1;
     pcl::PointCloud<pcl::PointNormal> pc_u_1;
     vector<int> vtindices;
     vector<int> vuindices;
-    pcl::PointCloud<pcl::PointNormal> sCloud_ut;
-    string pcsPath_t = "output/PointClouds/pcs_t_f";
-    string pcsPath_ut = "output/PointClouds/pcs_ut_f";
 
     // Reconstructed mesh
     PolygonMesh mesh_t;
     PolygonMesh mesh_u;
-    PolygonMesh mesh_ut;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr reconstructed_cloud_t;// (new pcl::PointCloud<pcl::PointXYZ>);
-    string pcrPath_t = "output/PointClouds/pcr_t_f";
-    string pcrPath_u = "output/PointClouds/pcr_t_f";
-    string pcrPath_ut = "output/PointClouds/pcr_ut_f";
-    int nVerticesInMesh_t = 0;
-    int nVerticesInMesh_ut = 0;
-
-    // Final Point cloud with both layers
-    pcl::PointCloud<pcl::PointXYZ> sCloud_quads12;
-    string pcPath_t12 = "output/PointClouds/pc2_t_f";
 
     vector<vector<int> > triangles_t;
     vector<vector<int> > triangles_u;
-    vector<vector<int> > triangles_ut;
-    vector<vector<int> > edges_t;
-    vector<vector<int> > edges_ut;
-    vector<vector<vector<int> > > edgespertriangle;
     vector<vector<vector<int> > > edgespertriangle_t;
     vector<vector<vector<int> > > edgespertriangle_u;
-    vector<vector<vector<int> > > edgespertriangle_ut;
-    vector<int> nNotT2Q_t;
-    vector<int> nNotT2Q_ut;
 
     vector<vector<int> > vIdxNewVertices;
-    vector<vector<int> > vIdxNewVertices_t;
     vector<vector<int> > vIdxNewVertices_u;
     vector<vector<int> > vNewPointsBase;
-    vector<vector<int> > vNewPointsBase_t;
     vector<vector<int> > vNewPointsBase_u;
 
     vector<vector<int> > quads_t;
     vector<vector<int> > quads_u;
-    vector<vector<int> > quads_ut;
-
-    vector<vector<int> > edgesq_t;
-    vector<vector<int> > edgesq_ut;
 
     // Frame
     unsigned int nFrameId;
 
-    // Young Modulus [Pa]
+    // Young Modulus [Pa] & Poisson Coefficient
     unsigned int E;
-
-    // Poisson Coefficient
     float nu;
 
-    // Behavior matrix
-    float D[6][6]= {};
-
-    // Lamé parameters
+    // Lamé parameters & Behaviour matrix
     float lambda = 0.0;
     float G = 0.0;
+    vector<vector<float> > D;
 
     // Gauss Points
-    float fg1 = 0.0;
-    float fg2 = 0.0;
-    float fg = 0.0;
+    float fg;
     vector<vector<float> > gs;
 
     // Element depth
-    float h = 0.0;
+    float h;
 
     // Elemental matrix
     vector<vector<float> > Ke;
@@ -362,9 +261,6 @@ private:
     // Debug mode
     bool bDebugMode = false;
 
-
 }; // class FEM
-
 } // namespace ORB_SLAM
-
 #endif // FEM_H
