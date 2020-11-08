@@ -86,6 +86,7 @@
 using namespace std;
 using namespace pcl;
 
+
 namespace ORB_SLAM2
 {
 class FEM
@@ -222,12 +223,12 @@ private:
     float G = 0.0;
     vector<vector<float> > D;
 
+    // Element depth
+    float h;
+    
     // Gauss Points
     float fg;
     vector<vector<float> > gs;
-
-    // Element depth
-    float h;
 
     // Elemental matrix
     vector<vector<float> > Ke;

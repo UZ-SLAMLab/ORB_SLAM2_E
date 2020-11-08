@@ -208,7 +208,7 @@ bool FEM::MLS(int nMode) {
         pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointNormal> mls1;
         mls1.setComputeNormals (true);
         mls1.setInputCloud (pc_t_mls_0);
-        mls1.setPolynomialFit (true);
+        //mls1.setPolynomialFit (true);
         mls1.setSearchMethod (tree1);
         mls1.setSearchRadius (900000);	//100 //0.25    // Original 0.03 // Default 0.00
         mls1.setPolynomialOrder(3); //50 // Default 2
@@ -245,7 +245,7 @@ bool FEM::MLS(int nMode) {
         pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointNormal> mls1;
         mls1.setComputeNormals (true);
         mls1.setInputCloud (pc_u_mls_0);
-        mls1.setPolynomialFit (true);
+        //mls1.setPolynomialFit (true);
         mls1.setSearchMethod (tree1);
         mls1.setSearchRadius (900000);	//100 //0.25    // Original 0.03 // Default 0.00
         mls1.setPolynomialOrder(3); //50 // Default 2
@@ -476,7 +476,6 @@ void FEM::CalculateGP3Parameters(pcl::PointCloud<pcl::PointNormal>::Ptr ppc, int
 
     float fmedtot = 0.0;
     float fsigmatot = 0.0;
-    int ntot = 0;
     for (unsigned int i=0; i<vtot.size(); i++) {
         fmedtot += vtot[i]/vtot.size();
     }
@@ -558,10 +557,10 @@ void FEM::tri2quad_t() {
     	vbtMPsActive[vtindices[vertices[i]]] = true;
 
     for (unsigned int i=0; i<offvertices.size(); i++)
-    	vbtMPsActive[vtindices[offvertices[i]]] = false;
+        vbtMPsActive[vtindices[offvertices[i]]] = false;
 
   	// Get true indexes
-  	vector<vector<int> > tempidx;
+    vector<vector<int> > tempidx;
   	for (unsigned int i=0; i<triangles_t.size(); i++) {
   		vector<int> triangle;
   		for (unsigned int j=0; j<triangles_t[i].size(); j++)
@@ -909,7 +908,7 @@ void FEM::tri2quad_u() {
     for (unsigned int i=0; i<offvertices.size(); i++)
     	vbuMPsActive[vuindices[offvertices[i]]] = false;
 
-  	vector<vector<int> > tempidx;
+    vector<vector<int> > tempidx;
   	for (unsigned int i=0; i<triangles_u.size(); i++) {
   		vector<int> triangle;
   		for (unsigned int j=0; j<triangles_u[i].size(); j++)
