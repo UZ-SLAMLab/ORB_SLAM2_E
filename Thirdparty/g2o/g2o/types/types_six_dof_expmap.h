@@ -42,6 +42,10 @@
 #include "types_sba.h"
 #include <Eigen/Geometry>
 
+//#include <vector>
+
+#include "../FEA/include/FEA.h"
+
 namespace g2o {
 namespace types_six_dof_expmap {
 void init();
@@ -78,34 +82,83 @@ public:
 
 
 class  EdgeSE3ProjectXYZ: public  BaseBinaryEdge<2, Vector2d, VertexSBAPointXYZ, VertexSE3Expmap>{
+
 public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  EdgeSE3ProjectXYZ();
+    EdgeSE3ProjectXYZ();
 
-  bool read(std::istream& is);
+    bool read(std::istream& is);
 
-  bool write(std::ostream& os) const;
+    bool write(std::ostream& os) const;
 
-  void computeError()  {
-    const VertexSE3Expmap* v1 = static_cast<const VertexSE3Expmap*>(_vertices[1]);
-    const VertexSBAPointXYZ* v2 = static_cast<const VertexSBAPointXYZ*>(_vertices[0]);
-    Vector2d obs(_measurement);
-    _error = obs-cam_project(v1->estimate().map(v2->estimate()));
-  }
+    void computeError()
+    {
+        const VertexSE3Expmap* v1 = static_cast<const VertexSE3Expmap*>(_vertices[1]);      //keyframe
+        const VertexSBAPointXYZ* v2 = static_cast<const VertexSBAPointXYZ*>(_vertices[0]);  //mappoint
+        Vector2d obs(_measurement);
+        _error = obs-cam_project(v1->estimate().map(v2->estimate()));
+        if (bInFEA==true)
+        {
+                        /*std::cout << "3dpos " << std::endl
+                                  << "obs" << std::endl
+                                  << obs << std::endl
+                                  << "vert kf" << std::endl
+                                  << v1->estimate() << std::endl
+                                  << "vert mp" << std::endl
+                                  << v2->estimate() << std::endl;*/
+            Eigen::Matrix<double, 3, 1> mPoint = v2->estimate();
+            std::cout << mPoint[0] << " " << mPoint[1] << " " << mPoint[2] << std::endl;
+            /*if (ptrPoint3D)
+            {
+                //pFEA->vMPsXYZN_t.clear();
+                ptrPoint3D->push_back(vPoint[0]);
+                ptrPoint3D->push_back(vPoint[1]);
+                ptrPoint3D->push_back(vPoint[2]);
+            }*/
+            //cout << "Added" << endl;
+        }
+    }
 
-  bool isDepthPositive() {
-    const VertexSE3Expmap* v1 = static_cast<const VertexSE3Expmap*>(_vertices[1]);
-    const VertexSBAPointXYZ* v2 = static_cast<const VertexSBAPointXYZ*>(_vertices[0]);
-    return (v1->estimate().map(v2->estimate()))(2)>0.0;
-  }
-    
+    void get3Di()
+    {
+        const VertexSE3Expmap* v1 = static_cast<const VertexSE3Expmap*>(_vertices[1]);      // Frame or KeyFrame
+        const VertexSBAPointXYZ* v2 = static_cast<const VertexSBAPointXYZ*>(_vertices[0]);  // Point
+        Vector2d obs(_measurement);
+        _error = obs-cam_project(v1->estimate().map(v2->estimate()));
+    }
 
-  virtual void linearizeOplus();
+    bool isDepthPositive()
+    {
+        const VertexSE3Expmap* v1 = static_cast<const VertexSE3Expmap*>(_vertices[1]);
+        const VertexSBAPointXYZ* v2 = static_cast<const VertexSBAPointXYZ*>(_vertices[0]);
+        return (v1->estimate().map(v2->estimate()))(2)>0.0;
+    }
 
-  Vector2d cam_project(const Vector3d & trans_xyz) const;
+    virtual void linearizeOplus();
 
-  double fx, fy, cx, cy;
+    Vector2d cam_project(const Vector3d & trans_xyz) const;
+
+    double fx, fy, cx, cy;
+
+    std::vector<float> * ptrPoint3D = NULL;
+    void setPtr3D(std::vector<float>* ptrInput)
+    {
+        ptrPoint3D = ptrInput;
+    }
+
+
+    /*FEA* pFEA = NULL;
+    void setPtrFea(FEA* pFeaInput)
+    {
+        pFEA = pFeaInput;
+    }*/
+
+    bool bInFEA = false;
+    void setbfea(bool bSet)
+    {
+        bInFEA = bSet;
+    }
 };
 
 

@@ -29,6 +29,8 @@
 
 #include "optimization_algorithm_with_hessian.h"
 
+#include "../FEA/include/FEA.h"
+
 namespace g2o {
 
   /**
@@ -64,6 +66,18 @@ namespace g2o {
 
       //! return the number of levenberg iterations performed in the last round
       int levenbergIteration() { return _levenbergIterations;}
+
+      FEA* pFEA;
+	  void setPtrFea(FEA* pFeaInput);
+
+	  bool bInFEA = false;
+	  float fFactorFEA = 1.0;
+   	  void setbfea(bool bSet)
+      {
+          bInFEA = bSet;
+      }
+
+      vector<vector<float> > GetPointCoordinates(vector<g2o::VertexSBAPointXYZ*> vVertices);
 
     protected:
       // Levenberg parameters

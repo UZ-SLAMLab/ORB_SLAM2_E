@@ -94,7 +94,7 @@ void RobustKernelTukey::setDeltaSqr(const double &deltaSqr, const double &inv)
 {
  _deltaSqr = deltaSqr;
  _invDeltaSqr = inv;
- 
+
 }
 
 void RobustKernelTukey::robustify(double e, Eigen::Vector3d& rho) const
@@ -109,7 +109,7 @@ void RobustKernelTukey::robustify(double e, Eigen::Vector3d& rho) const
   } else { // outlier
     rho[0] = _deltaSqr; // rho(e)   = delta^2
     rho[1] = 0.;
-    rho[2] = 0.;   
+    rho[2] = 0.;
   }
 }
 
@@ -131,7 +131,7 @@ void RobustKernelCauchy::robustify(double e2, Eigen::Vector3d& rho) const
   double aux = dsqrReci * e2 + 1.0;
   rho[0] = dsqr * log(aux);
   rho[1] = 1. / aux;
-  rho[2] = -dsqrReci * std::pow(rho[1], 2); 
+  rho[2] = -dsqrReci * std::pow(rho[1], 2);
 }
 
 void RobustKernelSaturated::robustify(double e2, Eigen::Vector3d& rho) const
@@ -158,7 +158,7 @@ void RobustKernelDCS::robustify(double e2, Eigen::Vector3d& rho) const
 
   rho[0] = scale*e2*scale;
   rho[1] = (scale*scale);
-  rho[2] = 0;    
+  rho[2] = 0;
 }
 
 

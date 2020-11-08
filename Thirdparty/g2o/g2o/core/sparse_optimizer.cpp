@@ -58,60 +58,131 @@ namespace g2o{
     G2OBatchStatistics::setGlobalStats(0);
   }
 
-  void SparseOptimizer::computeActiveErrors()
-  {
+void SparseOptimizer::computeActiveErrors()
+{
     // call the callbacks in case there is something registered
     HyperGraphActionSet& actions = _graphActions[AT_COMPUTEACTIVERROR];
-    if (actions.size() > 0) {
-      for (HyperGraphActionSet::iterator it = actions.begin(); it != actions.end(); ++it)
-        (*(*it))(this);
+    if (actions.size() > 0)
+    {
+        for (HyperGraphActionSet::iterator it = actions.begin(); it != actions.end(); ++it)
+            (*(*it))(this);
     }
 
 #   ifdef G2O_OPENMP
 #   pragma omp parallel for default (shared) if (_activeEdges.size() > 50)
 #   endif
-    for (int k = 0; k < static_cast<int>(_activeEdges.size()); ++k) {
-      OptimizableGraph::Edge* e = _activeEdges[k];
-      e->computeError();
+
+    if (pFEA)
+        pFEA->vMPsXYZN_t.clear();
+
+    for (int k = 0; k < static_cast<int>(_activeEdges.size()); ++k)
+    {
+        //vector<float> sPoint3d;
+        //vector<float>* pPoint3d = &sPoint3d;
+
+        OptimizableGraph::Edge* e = _activeEdges[k];
+
+        /*if (pFEA)
+        {
+            e->setPtr3D(pPoint3d);
+            pFEA->nCurrEdge = k;
+        }*/
+
+        e->computeError();
+
+        /*if (pFEA)
+        {
+            vector<float> sPoint3d;
+            pFEA->vMPsXYZN_t.push_back(sPoint3d);
+        }*/
+
+
+        //if (pFEA)
+        //{
+        //    cout << "sPoint3d.size() = " << sPoint3d.size() << endl;
+            //cout << "sPoint3d = " << sPoint3d[0] << "  " << sPoint3d[1] << "  " << sPoint3d[2] << endl;
+        //}
+        //e->get3Di();
     }
 
 #  ifndef NDEBUG
-    for (int k = 0; k < static_cast<int>(_activeEdges.size()); ++k) {
-      OptimizableGraph::Edge* e = _activeEdges[k];
-      bool hasNan = arrayHasNaN(e->errorData(), e->dimension());
-      if (hasNan) {
-        cerr << "computeActiveErrors(): found NaN in error for edge " << e << endl;
-      }
+    for (int k = 0; k < static_cast<int>(_activeEdges.size()); ++k)
+    {
+        OptimizableGraph::Edge* e = _activeEdges[k];
+        bool hasNan = arrayHasNaN(e->errorData(), e->dimension());
+        if (hasNan)
+        {
+            cerr << "computeActiveErrors(): found NaN in error for edge " << e << endl;
+        }
     }
 #  endif
 
-  }
+}
+
+/*std::vector<std::vector<float> > SparseOptimizer::get3D()
+{
+    std::vector<std::vector<float> > pos3D;
+    // call the callbacks in case there is something registered
+    HyperGraphActionSet& actions = _graphActions[AT_COMPUTEACTIVERROR];
+    if (actions.size() > 0)
+    {
+        for (HyperGraphActionSet::iterator it = actions.begin(); it != actions.end(); ++it)
+            (*(*it))(this);
+    }
+
+#   ifdef G2O_OPENMP
+#   pragma omp parallel for default (shared) if (_activeEdges.size() > 50)
+#   endif
+
+    for (int k = 0; k < static_cast<int>(_activeEdges.size()); ++k)
+    {
+        OptimizableGraph::Edge* e = _activeEdges[k];
+        e->computeError();
+    }
+
+#  ifndef NDEBUG
+    for (int k = 0; k < static_cast<int>(_activeEdges.size()); ++k)
+    {
+        OptimizableGraph::Edge* e = _activeEdges[k];
+        bool hasNan = arrayHasNaN(e->errorData(), e->dimension());
+        if (hasNan)
+        {
+            cerr << "computeActiveErrors(): found NaN in error for edge " << e << endl;
+        }
+    }
+#  endif
+
+    return pos3D;
+
+}*/
 
   double SparseOptimizer::activeChi2( ) const
   {
     double chi = 0.0;
     for (EdgeContainer::const_iterator it = _activeEdges.begin(); it != _activeEdges.end(); ++it) {
       const OptimizableGraph::Edge* e = *it;
-      chi += e->chi2();
+      chi += e->chi2(); // chi2() gets the sum of errors of all the vertexes in that edge
     }
     return chi;
   }
 
-  double SparseOptimizer::activeRobustChi2() const
-  {
+double SparseOptimizer::activeRobustChi2() const
+{
     Eigen::Vector3d rho;
     double chi = 0.0;
-    for (EdgeContainer::const_iterator it = _activeEdges.begin(); it != _activeEdges.end(); ++it) {
-      const OptimizableGraph::Edge* e = *it;
-      if (e->robustKernel()) {
-        e->robustKernel()->robustify(e->chi2(), rho);
-        chi += rho[0];
-      }
-      else
-        chi += e->chi2();
+    for (EdgeContainer::const_iterator it = _activeEdges.begin(); it != _activeEdges.end(); ++it)
+    {
+        const OptimizableGraph::Edge* e = *it;
+        if (e->robustKernel())
+        {
+            e->robustKernel()->robustify(e->chi2(), rho);
+            chi += rho[0];
+        }
+        else
+            chi += e->chi2();
     }
     return chi;
-  }
+}
 
   OptimizableGraph::Vertex* SparseOptimizer::findGauge(){
     if (vertices().empty())
@@ -119,10 +190,10 @@ namespace g2o{
 
     int maxDim=0;
     for (HyperGraph::VertexIDMap::iterator it=vertices().begin(); it!=vertices().end(); ++it){
-      OptimizableGraph::Vertex* v=static_cast<OptimizableGraph::Vertex*>(it->second); 
+      OptimizableGraph::Vertex* v=static_cast<OptimizableGraph::Vertex*>(it->second);
       maxDim=std::max(maxDim,v->dimension());
     }
-    
+
     OptimizableGraph::Vertex* rut=0;
     for (HyperGraph::VertexIDMap::iterator it=vertices().begin(); it!=vertices().end(); ++it){
       OptimizableGraph::Vertex* v=static_cast<OptimizableGraph::Vertex*>(it->second);
@@ -141,7 +212,7 @@ namespace g2o{
 
     int maxDim=0;
     for (HyperGraph::VertexIDMap::iterator it=vertices().begin(); it!=vertices().end(); ++it){
-      OptimizableGraph::Vertex* v=static_cast<OptimizableGraph::Vertex*>(it->second); 
+      OptimizableGraph::Vertex* v=static_cast<OptimizableGraph::Vertex*>(it->second);
       maxDim = std::max(maxDim,v->dimension());
     }
 
@@ -351,72 +422,86 @@ namespace g2o{
     }
   }
 
-  int SparseOptimizer::optimize(int iterations, bool online)
-  {
-    if (_ivMap.size() == 0) {
-      cerr << __PRETTY_FUNCTION__ << ": 0 vertices to optimize, maybe forgot to call initializeOptimization()" << endl;
-      return -1;
+int SparseOptimizer::optimize(int iterations, bool online)
+{
+    // Asegurarse de que se ha inicializado la optimización antes de calcular
+    if (_ivMap.size() == 0)
+    {
+        cerr << __PRETTY_FUNCTION__ << ": 0 vertices to optimize, maybe forgot to call initializeOptimization()" << endl;
+        return -1;
     }
 
+    // Variables 1
     int cjIterations=0;
     double cumTime=0;
     bool ok=true;
 
+    // Inicializar y check
     ok = _algorithm->init(online);
-    if (! ok) {
-      cerr << __PRETTY_FUNCTION__ << " Error while initializing" << endl;
-      return -1;
+    if (! ok)
+    {
+        cerr << __PRETTY_FUNCTION__ << " Error while initializing" << endl;
+        return -1;
     }
 
+    // Estadísticas del lote
     _batchStatistics.clear();
     if (_computeBatchStatistics)
-      _batchStatistics.resize(iterations);
-    
+        _batchStatistics.resize(iterations);
+
     OptimizationAlgorithm::SolverResult result = OptimizationAlgorithm::OK;
-    for (int i=0; i<iterations && ! terminate() && ok; i++){
-      preIteration(i);
+    for (int i=0; i<iterations && ! terminate() && ok; i++)
+    {
+        preIteration(i);
 
-      if (_computeBatchStatistics) {
-        G2OBatchStatistics& cstat = _batchStatistics[i];
-        G2OBatchStatistics::setGlobalStats(&cstat);
-        cstat.iteration = i;
-        cstat.numEdges =  _activeEdges.size();
-        cstat.numVertices = _activeVertices.size();
-      }
-      
-      double ts = get_monotonic_time();
-      result = _algorithm->solve(i, online);
-      ok = ( result == OptimizationAlgorithm::OK );
+        if (_computeBatchStatistics)
+        {
+            G2OBatchStatistics& cstat = _batchStatistics[i];
+            G2OBatchStatistics::setGlobalStats(&cstat);
+            cstat.iteration = i;
+            cstat.numEdges =  _activeEdges.size();
+            cstat.numVertices = _activeVertices.size();
+        }
 
-      bool errorComputed = false;
-      if (_computeBatchStatistics) {
-        computeActiveErrors();
-        errorComputed = true;
-        _batchStatistics[i].chi2 = activeRobustChi2();
-        _batchStatistics[i].timeIteration = get_monotonic_time()-ts;
-      }
+        double ts = get_monotonic_time();
 
-      if (verbose()){
-        double dts = get_monotonic_time()-ts;
-        cumTime += dts;
-        if (! errorComputed)
-          computeActiveErrors();
-        cerr << "iteration= " << i
-          << "\t chi2= " << FIXED(activeRobustChi2())
-          << "\t time= " << dts
-          << "\t cumTime= " << cumTime
-          << "\t edges= " << _activeEdges.size();
-        _algorithm->printVerbose(cerr);
-        cerr << endl;
-      }
-      ++cjIterations; 
-      postIteration(i);
+        result = _algorithm->solve(i, online);
+
+        ok = ( result == OptimizationAlgorithm::OK );
+
+        bool errorComputed = false;
+        if (_computeBatchStatistics)
+        {
+            computeActiveErrors();
+            errorComputed = true;
+            _batchStatistics[i].chi2 = activeRobustChi2();
+            _batchStatistics[i].timeIteration = get_monotonic_time()-ts;
+        }
+
+        if (verbose())
+        {
+            double dts = get_monotonic_time()-ts;
+            cumTime += dts;
+            if (! errorComputed)
+                computeActiveErrors();
+            cerr << "iteration= " << i
+                << "\t chi2= " << FIXED(activeRobustChi2())
+                << "\t time= " << dts
+                << "\t cumTime= " << cumTime
+                << "\t edges= " << _activeEdges.size();
+            _algorithm->printVerbose(cerr);
+            cerr << endl;
+        }
+
+        ++cjIterations;
+        postIteration(i);
     }
-    if (result == OptimizationAlgorithm::Fail) {
-      return 0;
+    if (result == OptimizationAlgorithm::Fail)
+    {
+        return 0;
     }
     return cjIterations;
-  }
+}
 
 
   void SparseOptimizer::update(const double* update)
@@ -453,7 +538,7 @@ namespace g2o{
       OptimizableGraph::Edge* e = static_cast<OptimizableGraph::Edge*>(*it);
       if (!e->allVerticesFixed()) _activeEdges.push_back(e);
     }
-    
+
     // update the index mapping
     size_t next = _ivMap.size();
     for (HyperGraph::VertexSet::iterator it = vset.begin(); it != vset.end(); ++it) {
@@ -465,7 +550,7 @@ namespace g2o{
           newVertices.push_back(v);
           _activeVertices.push_back(v);
           next++;
-        } 
+        }
         else // not supported right now
           abort();
       }
@@ -531,7 +616,7 @@ namespace g2o{
       OptimizableGraph::Vertex* v = dynamic_cast<OptimizableGraph::Vertex*>(*it);
       if (v)
 	v->push();
-      else 
+      else
 	cerr << __FUNCTION__ << ": FATAL PUSH SET" << endl;
     }
   }
@@ -542,7 +627,7 @@ namespace g2o{
       OptimizableGraph::Vertex* v = dynamic_cast<OptimizableGraph::Vertex*> (*it);
       if (v)
 	v->pop();
-      else 
+      else
 	cerr << __FUNCTION__ << ": FATAL POP SET" << endl;
     }
   }
@@ -610,6 +695,11 @@ namespace g2o{
   void SparseOptimizer::discardTop()
   {
     discardTop(_activeVertices);
+  }
+
+  void SparseOptimizer::setPtrFea(FEA* pFeaInput)
+  {
+      pFEA = pFeaInput;
   }
 
 } // end namespace

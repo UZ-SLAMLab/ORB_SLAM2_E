@@ -62,7 +62,7 @@ BlockSolver<Traits>::BlockSolver(LinearSolverType* linearSolver) :
 }
 
 template <typename Traits>
-void BlockSolver<Traits>::resize(int* blockPoseIndices, int numPoseBlocks, 
+void BlockSolver<Traits>::resize(int* blockPoseIndices, int numPoseBlocks,
               int* blockLandmarkIndices, int numLandmarkBlocks,
               int s)
 {
@@ -236,8 +236,8 @@ bool BlockSolver<Traits>::buildStructure(bool zeroBlocks)
           if (zeroBlocks)
             m->setZero();
           e->mapHessianMemory(m->data(), viIdx, vjIdx, false);
-        } else { 
-          if (v1->marginalized()){ 
+        } else {
+          if (v1->marginalized()){
             PoseLandmarkMatrixType* m = _Hpl->block(v2->hessianIndex(),v1->hessianIndex()-_numPoses, true);
             if (zeroBlocks)
               m->setZero();
@@ -339,7 +339,7 @@ bool BlockSolver<Traits>::updateStructure(const std::vector<HyperGraph::Vertex*>
         if (! v1->marginalized() && !v2->marginalized()) {
           PoseMatrixType* m = _Hpp->block(ind1, ind2, true);
           e->mapHessianMemory(m->data(), viIdx, vjIdx, transposedBlock);
-        } else { 
+        } else {
           std::cerr << __PRETTY_FUNCTION__ << ": not supported" << std::endl;
         }
       }
@@ -351,138 +351,148 @@ bool BlockSolver<Traits>::updateStructure(const std::vector<HyperGraph::Vertex*>
 }
 
 template <typename Traits>
-bool BlockSolver<Traits>::solve(){
-  //cerr << __PRETTY_FUNCTION__ << endl;
-  if (! _doSchur){
+bool BlockSolver<Traits>::solve()
+{
+    //cerr << __PRETTY_FUNCTION__ << endl;
+    if (! _doSchur)
+    {
+        double t=get_monotonic_time();
+        bool ok = _linearSolver->solve(*_Hpp, _x, _b);
+        G2OBatchStatistics* globalStats = G2OBatchStatistics::globalStats();
+        if (globalStats)
+        {
+            globalStats->timeLinearSolver = get_monotonic_time() - t;
+            globalStats->hessianDimension = globalStats->hessianPoseDimension = _Hpp->cols();
+        }
+        return ok;
+    }
+
+    // schur thing
+
+    // backup the coefficient matrix
     double t=get_monotonic_time();
-    bool ok = _linearSolver->solve(*_Hpp, _x, _b);
+
+    // _Hschur = _Hpp, but keeping the pattern of _Hschur
+    _Hschur->clear();
+    _Hpp->add(_Hschur);
+
+    //_DInvSchur->clear();
+    memset (_coefficients, 0, _sizePoses*sizeof(double));
+    # ifdef G2O_OPENMP
+    # pragma omp parallel for default (shared) schedule(dynamic, 10)
+    # endif
+    for (int landmarkIndex = 0; landmarkIndex < static_cast<int>(_Hll->blockCols().size()); ++landmarkIndex)
+    {
+        const typename SparseBlockMatrix<LandmarkMatrixType>::IntBlockMap& marginalizeColumn = _Hll->blockCols()[landmarkIndex];
+        assert(marginalizeColumn.size() == 1 && "more than one block in _Hll column");
+
+        // calculate inverse block for the landmark
+        const LandmarkMatrixType * D = marginalizeColumn.begin()->second;
+        assert (D && D->rows()==D->cols() && "Error in landmark matrix");
+        LandmarkMatrixType& Dinv = _DInvSchur->diagonal()[landmarkIndex];
+        Dinv = D->inverse();
+
+        LandmarkVectorType  db(D->rows());
+        for (int j=0; j<D->rows(); ++j)
+        {
+          db[j]=_b[_Hll->rowBaseOfBlock(landmarkIndex) + _sizePoses + j];
+        }
+        db=Dinv*db;
+
+        assert((size_t)landmarkIndex < _HplCCS->blockCols().size() && "Index out of bounds");
+        const typename SparseBlockMatrixCCS<PoseLandmarkMatrixType>::SparseColumn& landmarkColumn = _HplCCS->blockCols()[landmarkIndex];
+
+        for (typename SparseBlockMatrixCCS<PoseLandmarkMatrixType>::SparseColumn::const_iterator it_outer = landmarkColumn.begin();
+        it_outer != landmarkColumn.end(); ++it_outer)
+        {
+            int i1 = it_outer->row;
+
+            const PoseLandmarkMatrixType* Bi = it_outer->block;
+            assert(Bi);
+
+            PoseLandmarkMatrixType BDinv = (*Bi)*(Dinv);
+            assert(_HplCCS->rowBaseOfBlock(i1) < _sizePoses && "Index out of bounds");
+            typename PoseVectorType::MapType Bb(&_coefficients[_HplCCS->rowBaseOfBlock(i1)], Bi->rows());
+            #    ifdef G2O_OPENMP
+            ScopedOpenMPMutex mutexLock(&_coefficientsMutex[i1]);
+            #    endif
+            Bb.noalias() += (*Bi)*db;
+
+            assert(i1 >= 0 && i1 < static_cast<int>(_HschurTransposedCCS->blockCols().size()) && "Index out of bounds");
+            typename SparseBlockMatrixCCS<PoseMatrixType>::SparseColumn::iterator targetColumnIt = _HschurTransposedCCS->blockCols()[i1].begin();
+
+            typename SparseBlockMatrixCCS<PoseLandmarkMatrixType>::RowBlock aux(i1, 0);
+            typename SparseBlockMatrixCCS<PoseLandmarkMatrixType>::SparseColumn::const_iterator it_inner = lower_bound(landmarkColumn.begin(), landmarkColumn.end(), aux);
+            for (; it_inner != landmarkColumn.end(); ++it_inner)
+            {
+                int i2 = it_inner->row;
+                const PoseLandmarkMatrixType* Bj = it_inner->block;
+                assert(Bj);
+                while (targetColumnIt->row < i2 /*&& targetColumnIt != _HschurTransposedCCS->blockCols()[i1].end()*/)
+                    ++targetColumnIt;
+                assert(targetColumnIt != _HschurTransposedCCS->blockCols()[i1].end() && targetColumnIt->row == i2 && "invalid iterator, something wrong with the matrix structure");
+                PoseMatrixType* Hi1i2 = targetColumnIt->block;//_Hschur->block(i1,i2);
+                assert(Hi1i2);
+                (*Hi1i2).noalias() -= BDinv*Bj->transpose();
+            }
+        }
+    }
+    //cerr << "Solve [marginalize] = " <<  get_monotonic_time()-t << endl;
+
+    // _bschur = _b for calling solver, and not touching _b
+    memcpy(_bschur, _b, _sizePoses * sizeof(double));
+    for (int i=0; i<_sizePoses; ++i)
+    {
+        _bschur[i]-=_coefficients[i];
+    }
+
     G2OBatchStatistics* globalStats = G2OBatchStatistics::globalStats();
-    if (globalStats) {
-      globalStats->timeLinearSolver = get_monotonic_time() - t;
-      globalStats->hessianDimension = globalStats->hessianPoseDimension = _Hpp->cols();
+    if (globalStats)
+    {
+        globalStats->timeSchurComplement = get_monotonic_time() - t;
     }
-    return ok;
-  }
 
-  // schur thing
-
-  // backup the coefficient matrix
-  double t=get_monotonic_time();
-
-  // _Hschur = _Hpp, but keeping the pattern of _Hschur
-  _Hschur->clear();
-  _Hpp->add(_Hschur);
-
-  //_DInvSchur->clear();
-  memset (_coefficients, 0, _sizePoses*sizeof(double));
-# ifdef G2O_OPENMP
-# pragma omp parallel for default (shared) schedule(dynamic, 10)
-# endif
-  for (int landmarkIndex = 0; landmarkIndex < static_cast<int>(_Hll->blockCols().size()); ++landmarkIndex) {
-    const typename SparseBlockMatrix<LandmarkMatrixType>::IntBlockMap& marginalizeColumn = _Hll->blockCols()[landmarkIndex];
-    assert(marginalizeColumn.size() == 1 && "more than one block in _Hll column");
-
-    // calculate inverse block for the landmark
-    const LandmarkMatrixType * D = marginalizeColumn.begin()->second;
-    assert (D && D->rows()==D->cols() && "Error in landmark matrix");
-    LandmarkMatrixType& Dinv = _DInvSchur->diagonal()[landmarkIndex];
-    Dinv = D->inverse();
-
-    LandmarkVectorType  db(D->rows());
-    for (int j=0; j<D->rows(); ++j) {
-      db[j]=_b[_Hll->rowBaseOfBlock(landmarkIndex) + _sizePoses + j];
+    t=get_monotonic_time();
+    bool solvedPoses = _linearSolver->solve(*_Hschur, _x, _bschur);
+    if (globalStats)
+    {
+        globalStats->timeLinearSolver = get_monotonic_time() - t;
+        globalStats->hessianPoseDimension = _Hpp->cols();
+        globalStats->hessianLandmarkDimension = _Hll->cols();
+        globalStats->hessianDimension = globalStats->hessianPoseDimension + globalStats->hessianLandmarkDimension;
     }
-    db=Dinv*db;
+    //cerr << "Solve [decompose and solve] = " <<  get_monotonic_time()-t << endl;
 
-    assert((size_t)landmarkIndex < _HplCCS->blockCols().size() && "Index out of bounds");
-    const typename SparseBlockMatrixCCS<PoseLandmarkMatrixType>::SparseColumn& landmarkColumn = _HplCCS->blockCols()[landmarkIndex];
+    if (! solvedPoses)
+        return false;
 
-    for (typename SparseBlockMatrixCCS<PoseLandmarkMatrixType>::SparseColumn::const_iterator it_outer = landmarkColumn.begin();
-        it_outer != landmarkColumn.end(); ++it_outer) {
-      int i1 = it_outer->row;
+    // _x contains the solution for the poses, now applying it to the landmarks to get the new part of the
+    // solution;
+    double* xp = _x;
+    double* cp = _coefficients;
 
-      const PoseLandmarkMatrixType* Bi = it_outer->block;
-      assert(Bi);
+    double* xl=_x+_sizePoses;
+    double* cl=_coefficients + _sizePoses;
+    double* bl=_b+_sizePoses;
 
-      PoseLandmarkMatrixType BDinv = (*Bi)*(Dinv);
-      assert(_HplCCS->rowBaseOfBlock(i1) < _sizePoses && "Index out of bounds");
-      typename PoseVectorType::MapType Bb(&_coefficients[_HplCCS->rowBaseOfBlock(i1)], Bi->rows());
-#    ifdef G2O_OPENMP
-      ScopedOpenMPMutex mutexLock(&_coefficientsMutex[i1]);
-#    endif
-      Bb.noalias() += (*Bi)*db;
+    // cp = -xp
+    for (int i=0; i<_sizePoses; ++i)
+        cp[i]=-xp[i];
 
-      assert(i1 >= 0 && i1 < static_cast<int>(_HschurTransposedCCS->blockCols().size()) && "Index out of bounds");
-      typename SparseBlockMatrixCCS<PoseMatrixType>::SparseColumn::iterator targetColumnIt = _HschurTransposedCCS->blockCols()[i1].begin();
+    // cl = bl
+    memcpy(cl,bl,_sizeLandmarks*sizeof(double));
 
-      typename SparseBlockMatrixCCS<PoseLandmarkMatrixType>::RowBlock aux(i1, 0);
-      typename SparseBlockMatrixCCS<PoseLandmarkMatrixType>::SparseColumn::const_iterator it_inner = lower_bound(landmarkColumn.begin(), landmarkColumn.end(), aux);
-      for (; it_inner != landmarkColumn.end(); ++it_inner) {
-        int i2 = it_inner->row;
-        const PoseLandmarkMatrixType* Bj = it_inner->block;
-        assert(Bj); 
-        while (targetColumnIt->row < i2 /*&& targetColumnIt != _HschurTransposedCCS->blockCols()[i1].end()*/)
-          ++targetColumnIt;
-        assert(targetColumnIt != _HschurTransposedCCS->blockCols()[i1].end() && targetColumnIt->row == i2 && "invalid iterator, something wrong with the matrix structure");
-        PoseMatrixType* Hi1i2 = targetColumnIt->block;//_Hschur->block(i1,i2);
-        assert(Hi1i2);
-        (*Hi1i2).noalias() -= BDinv*Bj->transpose();
-      }
-    }
-  }
-  //cerr << "Solve [marginalize] = " <<  get_monotonic_time()-t << endl;
+    // cl = bl - Bt * xp
+    //Bt->multiply(cl, cp);
+    _HplCCS->rightMultiply(cl, cp);
 
-  // _bschur = _b for calling solver, and not touching _b
-  memcpy(_bschur, _b, _sizePoses * sizeof(double));
-  for (int i=0; i<_sizePoses; ++i){
-    _bschur[i]-=_coefficients[i];
-  }
+    // xl = Dinv * cl
+    memset(xl,0, _sizeLandmarks*sizeof(double));
+    _DInvSchur->multiply(xl,cl);
+    //_DInvSchur->rightMultiply(xl,cl);
+    //cerr << "Solve [landmark delta] = " <<  get_monotonic_time()-t << endl;
 
-  G2OBatchStatistics* globalStats = G2OBatchStatistics::globalStats();
-  if (globalStats){
-    globalStats->timeSchurComplement = get_monotonic_time() - t;
-  }
-
-  t=get_monotonic_time();
-  bool solvedPoses = _linearSolver->solve(*_Hschur, _x, _bschur);
-  if (globalStats) {
-    globalStats->timeLinearSolver = get_monotonic_time() - t;
-    globalStats->hessianPoseDimension = _Hpp->cols();
-    globalStats->hessianLandmarkDimension = _Hll->cols();
-    globalStats->hessianDimension = globalStats->hessianPoseDimension + globalStats->hessianLandmarkDimension;
-  }
-  //cerr << "Solve [decompose and solve] = " <<  get_monotonic_time()-t << endl;
-
-  if (! solvedPoses)
-    return false;
-
-  // _x contains the solution for the poses, now applying it to the landmarks to get the new part of the
-  // solution;
-  double* xp = _x;
-  double* cp = _coefficients;
-
-  double* xl=_x+_sizePoses;
-  double* cl=_coefficients + _sizePoses;
-  double* bl=_b+_sizePoses;
-
-  // cp = -xp
-  for (int i=0; i<_sizePoses; ++i)
-    cp[i]=-xp[i];
-
-  // cl = bl
-  memcpy(cl,bl,_sizeLandmarks*sizeof(double));
-
-  // cl = bl - Bt * xp
-  //Bt->multiply(cl, cp);
-  _HplCCS->rightMultiply(cl, cp);
-
-  // xl = Dinv * cl
-  memset(xl,0, _sizeLandmarks*sizeof(double));
-  _DInvSchur->multiply(xl,cl);
-  //_DInvSchur->rightMultiply(xl,cl);
-  //cerr << "Solve [landmark delta] = " <<  get_monotonic_time()-t << endl;
-
-  return true;
+    return true;
 }
 
 

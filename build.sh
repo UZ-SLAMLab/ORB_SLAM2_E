@@ -64,7 +64,7 @@ make -j
 
 echo "                               "
 echo "Configuring and building ROS examples ..."
-cd ../Examples/ROS/ORB_SLAM2
+cd ../Examples/ROS/ORB_SLAM2_E
 case $1 in 0) 
 	mkdir build
 	;;

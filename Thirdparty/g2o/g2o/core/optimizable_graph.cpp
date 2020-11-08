@@ -53,12 +53,12 @@ namespace g2o {
   OptimizableGraph::Data::Data(){
     _next = 0;
   }
-  
+
   OptimizableGraph::Data::~Data(){
     if (_next)
       delete _next;
   }
-  
+
 
   OptimizableGraph::Vertex::Vertex() :
     HyperGraph::Vertex(),
@@ -88,7 +88,7 @@ namespace g2o {
     if (_userData)
       delete _userData;
   }
-  
+
   OptimizableGraph::Vertex* OptimizableGraph::Vertex::clone() const
   {
     return 0;
@@ -129,103 +129,119 @@ namespace g2o {
   }
 
 
-  OptimizableGraph::Edge::Edge() :
+OptimizableGraph::Edge::Edge() :
     HyperGraph::Edge(),
     _dimension(-1), _level(0), _robustKernel(0)
-  {
-  }
+    {
+    }
 
-  OptimizableGraph::Edge::~Edge()
-  {
+OptimizableGraph::Edge::~Edge()
+{
     delete _robustKernel;
-  }
+}
 
-  OptimizableGraph* OptimizableGraph::Edge::graph(){
+void OptimizableGraph::Edge::setPtr3D(std::vector<float>* ptrInput)
+{
+    ptrPoint3D = ptrInput;
+}
+
+
+OptimizableGraph* OptimizableGraph::Edge::graph()
+{
     if (! _vertices.size())
-      return 0;
+        return 0;
     OptimizableGraph::Vertex* v=(OptimizableGraph::Vertex*)_vertices[0];
     if (!v)
-      return 0;
+        return 0;
     return v->graph();
-  }
-  
-  const OptimizableGraph* OptimizableGraph::Edge::graph() const{
+}
+
+const OptimizableGraph* OptimizableGraph::Edge::graph() const
+{
     if (! _vertices.size())
-      return 0;
+        return 0;
     const OptimizableGraph::Vertex* v=(const OptimizableGraph::Vertex*) _vertices[0];
     if (!v)
-      return 0;
+        return 0;
     return v->graph();
-  }
+}
 
-  bool OptimizableGraph::Edge::setParameterId(int argNum, int paramId){
+bool OptimizableGraph::Edge::setParameterId(int argNum, int paramId)
+{
     if ((int)_parameters.size()<=argNum)
-      return false;
+        return false;
     if (argNum<0)
-      return false;
+        return false;
     *_parameters[argNum] = 0;
     _parameterIds[argNum] = paramId;
     return true;
-  }
+}
 
-  bool OptimizableGraph::Edge::resolveParameters() {
-    if (!graph()) {
-      cerr << __PRETTY_FUNCTION__ << ": edge not registered with a graph" << endl;
-      return false;
+bool OptimizableGraph::Edge::resolveParameters()
+{
+    if (!graph())
+    {
+        cerr << __PRETTY_FUNCTION__ << ": edge not registered with a graph" << endl;
+        return false;
     }
-    
+
     assert (_parameters.size() == _parameterIds.size());
     //cerr << __PRETTY_FUNCTION__ << ": encountered " << _parameters.size() << " parameters" << endl;
-    for (size_t i=0; i<_parameters.size(); i++){
-      int index = _parameterIds[i];
-      *_parameters[i] = graph()->parameter(index);
-      if (typeid(**_parameters[i]).name()!=_parameterTypes[i]){
-        cerr << __PRETTY_FUNCTION__ << ": FATAL, parameter type mismatch - encountered " << typeid(**_parameters[i]).name() << "; should be " << _parameterTypes[i] << endl;
-      }
-      if (!*_parameters[i]) {
-        cerr << __PRETTY_FUNCTION__ << ": FATAL, *_parameters[i] == 0" << endl;
-        return false;
-      }
+    for (size_t i=0; i<_parameters.size(); i++)
+    {
+        int index = _parameterIds[i];
+        *_parameters[i] = graph()->parameter(index);
+        if (typeid(**_parameters[i]).name()!=_parameterTypes[i])
+        {
+            cerr << __PRETTY_FUNCTION__ << ": FATAL, parameter type mismatch - encountered " << typeid(**_parameters[i]).name() << "; should be " << _parameterTypes[i] << endl;
+        }
+        if (!*_parameters[i])
+        {
+            cerr << __PRETTY_FUNCTION__ << ": FATAL, *_parameters[i] == 0" << endl;
+            return false;
+        }
     }
     return true;
-  }
+}
 
-  void OptimizableGraph::Edge::setRobustKernel(RobustKernel* ptr)
-  {
+void OptimizableGraph::Edge::setRobustKernel(RobustKernel* ptr)
+{
     if (_robustKernel)
-      delete _robustKernel;
+        delete _robustKernel;
     _robustKernel = ptr;
-  }
+}
 
-  bool OptimizableGraph::Edge::resolveCaches() {
+bool OptimizableGraph::Edge::resolveCaches()
+{
     return true;
-  }
+}
 
-  bool OptimizableGraph::Edge::setMeasurementData(const double *)
-  {
+bool OptimizableGraph::Edge::setMeasurementData(const double *)
+{
     return false;
-  }
+}
 
-  bool OptimizableGraph::Edge::getMeasurementData(double *) const
-  {
+bool OptimizableGraph::Edge::getMeasurementData(double *) const
+{
     return false;
-  }
+}
 
-  int OptimizableGraph::Edge::measurementDimension() const
-  {
+int OptimizableGraph::Edge::measurementDimension() const
+{
     return -1;
-  }
+}
 
-  bool OptimizableGraph::Edge::setMeasurementFromState(){
+bool OptimizableGraph::Edge::setMeasurementFromState()
+{
     return false;
-  }
+}
 
 
-  OptimizableGraph::Edge* OptimizableGraph::Edge::clone() const
-  {
+OptimizableGraph::Edge* OptimizableGraph::Edge::clone() const
+{
     // TODO
     return 0;
-  }
+}
 
 
   OptimizableGraph::OptimizableGraph()
@@ -278,7 +294,7 @@ namespace g2o {
     if (! e->resolveCaches()){
       cerr << __FUNCTION__ << ": FATAL, cannot resolve caches for edge " << e << endl;
       return false;
-    } 
+    }
     _jacobianWorkspace.updateSize(e);
 
     return true;
@@ -386,7 +402,7 @@ bool OptimizableGraph::load(istream& is, bool createEdges)
 
     // handle commands encoded in the file
     bool handledCommand = false;
-    
+
     if (token == "FIX") {
       handledCommand = true;
       int id;
@@ -405,7 +421,7 @@ bool OptimizableGraph::load(istream& is, bool createEdges)
 
     if (handledCommand)
       continue;
-     
+
     // do the mapping to an internal type if it matches
     if (_renamedTypesLookup.size() > 0) {
       map<string, string>::const_iterator foundIt = _renamedTypesLookup.find(token);
@@ -485,7 +501,7 @@ bool OptimizableGraph::load(istream& is, bool createEdges)
             delete e;
           } else {
             switch (doInit){
-              case 1: 
+              case 1:
                 {
                   HyperGraph::VertexSet fromSet;
                   fromSet.insert(from);
@@ -528,7 +544,7 @@ bool OptimizableGraph::load(istream& is, bool createEdges)
         } else {
           bool r = e->read(currentLine);
           if (!r || !addEdge(e)) {
-            cerr << __PRETTY_FUNCTION__ << ": Unable to add edge " << token; 
+            cerr << __PRETTY_FUNCTION__ << ": Unable to add edge " << token;
             for (int l = 0; l < numV; ++l) {
               if (l > 0)
                 cerr << " <->";
@@ -564,7 +580,7 @@ bool OptimizableGraph::load(istream& is, bool createEdges)
       }
     }
   } // while read line
-  
+
   return true;
 }
 
@@ -677,7 +693,7 @@ bool OptimizableGraph::saveSubset(ostream& os, HyperGraph::EdgeSet& eset)
 
   return os.good();
 }
-  
+
 void OptimizableGraph::addGraph(OptimizableGraph* g){
   for (HyperGraph::VertexIDMap::iterator it=g->vertices().begin(); it!=g->vertices().end(); ++it){
     OptimizableGraph::Vertex* v= (OptimizableGraph::Vertex*)(it->second);

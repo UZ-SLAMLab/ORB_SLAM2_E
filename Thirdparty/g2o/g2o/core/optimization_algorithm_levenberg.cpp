@@ -36,6 +36,8 @@
 #include "sparse_optimizer.h"
 #include "solver.h"
 #include "batch_stats.h"
+
+
 using namespace std;
 
 namespace g2o {
@@ -58,39 +60,59 @@ namespace g2o {
   {
   }
 
-  OptimizationAlgorithm::SolverResult OptimizationAlgorithmLevenberg::solve(int iteration, bool online)
-  {
+OptimizationAlgorithm::SolverResult OptimizationAlgorithmLevenberg::solve(int iteration, bool online)
+{
     assert(_optimizer && "_optimizer not set");
     assert(_solver->optimizer() == _optimizer && "underlying linear solver operates on different graph");
 
-    if (iteration == 0 && !online) { // built up the CCS structure, here due to easy time measure
-      bool ok = _solver->buildStructure();
-      if (! ok) {
-        cerr << __PRETTY_FUNCTION__ << ": Failure while building CCS structure" << endl;
-        return OptimizationAlgorithm::Fail;
-      }
+    if (iteration == 0 && !online)
+    { // built up the CCS structure, here due to easy time measure
+        bool ok = _solver->buildStructure();
+        if (! ok)
+        {
+            cerr << __PRETTY_FUNCTION__ << ": Failure while building CCS structure" << endl;
+            return OptimizationAlgorithm::Fail;
+        }
     }
 
     double t=get_monotonic_time();
-    _optimizer->computeActiveErrors();
+
+    VertexSBAPointXYZ* v1_1;    //Debug
+    VertexSBAPointXYZ* v1_2;    //Debug
+
+    if (bInFEA)
+    {
+        //vector<vector<float> > vPoints = GetPointCoordinates(pFEA->vVertices);
+        pFEA->setbfea(true);
+        _optimizer->computeActiveErrors();
+        pFEA->setbfea(false);
+        v1_1 = pFEA->vVertices[5];      //Debug
+    }
+    else
+        _optimizer->computeActiveErrors();
+
     G2OBatchStatistics* globalStats = G2OBatchStatistics::globalStats();
-    if (globalStats) {
-      globalStats->timeResiduals = get_monotonic_time()-t;
-      t=get_monotonic_time();
+    if (globalStats)
+    {
+        globalStats->timeResiduals = get_monotonic_time()-t;
+        t=get_monotonic_time();
     }
 
     double currentChi = _optimizer->activeRobustChi2();
     double tempChi=currentChi;
-
     double iniChi = currentChi;
 
+    if (bInFEA) if (pFEA->bDebugMode) cout << "           - iniChi before FEM = " << iniChi << endl;
+
     _solver->buildSystem();
-    if (globalStats) {
-      globalStats->timeQuadraticForm = get_monotonic_time()-t;
+    if (globalStats)
+    {
+        globalStats->timeQuadraticForm = get_monotonic_time()-t;
     }
 
-    // core part of the Levenbarg algorithm
-    if (iteration == 0) {       
+    // core part of the Levenberg algorithm
+    if (iteration == 0)
+    {
       _currentLambda = computeLambdaInit();
       _ni = 2;
       _nBad = 0;
@@ -99,59 +121,125 @@ namespace g2o {
     double rho=0;
     int& qmax = _levenbergIterations;
     qmax = 0;
-    do {
-      _optimizer->push();
-      if (globalStats) {
-        globalStats->levenbergIterations++;
-        t=get_monotonic_time();
-      }
-      // update the diagonal of the system matrix
-      _solver->setLambda(_currentLambda, true);
-      bool ok2 = _solver->solve();
-      if (globalStats) {
-        globalStats->timeLinearSolution+=get_monotonic_time()-t;
-        t=get_monotonic_time();
-      }
-      _optimizer->update(_solver->x());
-      if (globalStats) {
-        globalStats->timeUpdate = get_monotonic_time()-t;
-      }
+    do
+    {
+        _optimizer->push();
+        if (globalStats)
+        {
+            globalStats->levenbergIterations++;
+            t=get_monotonic_time();
+        }
+        // update the diagonal of the system matrix
+        _solver->setLambda(_currentLambda, true);
+        bool ok2 = _solver->solve();
+        if (globalStats)
+        {
+            globalStats->timeLinearSolution+=get_monotonic_time()-t;
+            t=get_monotonic_time();
+        }
+        _optimizer->update(_solver->x());
+        if (globalStats)
+        {
+            globalStats->timeUpdate = get_monotonic_time()-t;
+        }
 
-      // restore the diagonal
-      _solver->restoreDiagonal();
+        // restore the diagonal
+        _solver->restoreDiagonal();
 
-      _optimizer->computeActiveErrors();
-      tempChi = _optimizer->activeRobustChi2();
+        if (bInFEA)
+        {
+            pFEA->setbfea2(true);
+            _optimizer->computeActiveErrors();  // Computes reprojection errors and stores them in _error
+            pFEA->setbfea2(false);
+        }
+        else
+            _optimizer->computeActiveErrors();  // Computes reprojection errors and stores them in _error
 
-      if (! ok2)
-        tempChi=std::numeric_limits<double>::max();
+        tempChi = _optimizer->activeRobustChi2();   // Sums of all the reprojection errors
 
-      rho = (currentChi-tempChi);
-      double scale = computeScale();
-      scale += 1e-3; // make sure it's non-zero :)
-      rho /=  scale;
+        if (!ok2)
+            tempChi=std::numeric_limits<double>::max();
 
-      if (rho>0 && g2o_isfinite(tempChi)){ // last step was good
-        double alpha = 1.-pow((2*rho-1),3);
-        // crop lambda between minimum and maximum factors
-        alpha = (std::min)(alpha, _goodStepUpperScale);
-        double scaleFactor = (std::max)(_goodStepLowerScale, alpha);
-        _currentLambda *= scaleFactor;
-        _ni = 2;
-        currentChi=tempChi;
-        _optimizer->discardTop();
-      } else {
-        _currentLambda*=_ni;
-        _ni*=2;
-        _optimizer->pop(); // restore the last state before trying to optimize
-      }
-      qmax++;
-    } while (rho<0 && qmax < _maxTrialsAfterFailure->value() && ! _optimizer->terminate());
+        if (bInFEA)
+        {
+            float sE = 0.0;
+            float nsE = 0.0;
+
+            vector<vector<float> > vPoints = GetPointCoordinates(pFEA->vVertices);
+
+            pFEA->Set_uf(vPoints);
+            pFEA->ComputeDisplacement();
+            pFEA->ComputeForces();
+
+            sE = pFEA->ComputeStrainEnergy();
+            nsE = pFEA->NormalizeStrainEnergy();
+
+            //Debug
+            /*
+            if (pFEA->bDebugMode)
+            {
+                v1_2 = pFEA->vVertices[5];
+                Eigen::Matrix<double, 3, 1> p1_1 = v1_1->estimate();
+                Eigen::Matrix<double, 3, 1> p1_2 = v1_2->estimate();
+                cout << "----------------------------------" << endl;
+                cout << p1_1[0] << " - " << p1_2[0] << endl;
+                cout << p1_1[1] << " - " << p1_2[1] << endl;
+                cout << p1_1[2] << " - " << p1_2[2] << endl;
+                cout << "----------------------------------" << endl;
+            }
+            */
+
+
+            float w_rE = 2.0;
+            float w_sE = 1.0;
+            fFactorFEA = nsE/currentChi;
+            if (qmax==0)
+            {
+                w_rE = 1.0;
+                w_sE = 1.0;
+                if (pFEA->bDebugMode) cout << "             currentChi1 / nsE / fFactorFEA = " << currentChi << " / " << nsE << " / " << fFactorFEA << endl;
+                currentChi += nsE/fFactorFEA;
+                if (pFEA->bDebugMode) cout << "             currentChi2 = " << currentChi << endl;
+            }
+            else
+                cout << "             currentChi = " << currentChi << endl;
+
+            nsE /= fFactorFEA;
+            if (pFEA->bDebugMode) cout << "             wOPT = tempChi = w_rE·rE + w_sE·sE = " << w_rE << "·" << tempChi << " + " << w_sE << "·" << nsE << " = " << (w_rE*tempChi + w_sE*nsE) << endl;
+            tempChi = w_rE*tempChi + w_sE*nsE;
+        }
+
+        rho = (currentChi-tempChi);         // Difference between reprojection errors before and after the optimization
+        double scale = computeScale();
+        scale += 1e-3; // make sure it's non-zero :)
+        if (bInFEA) if (pFEA->bDebugMode) cout << "             rho = (currentChi - tempChi)/scale = (" << currentChi << " - " << tempChi << ")/" << scale << " = " << rho/scale << endl;
+        rho /=  scale;
+
+        if (rho>0 && g2o_isfinite(tempChi)) // last step was good
+        {
+            double alpha = 1.-pow((2*rho-1),3);
+            // crop lambda between minimum and maximum factors
+            alpha = (std::min)(alpha, _goodStepUpperScale);
+            double scaleFactor = (std::max)(_goodStepLowerScale, alpha);
+            _currentLambda *= scaleFactor;
+            _ni = 2;
+            currentChi=tempChi;
+            _optimizer->discardTop();
+        }
+        else
+        {
+            _currentLambda*=_ni;
+            _ni*=2;
+            _optimizer->pop(); // restore the last state before trying to optimize
+        }
+        qmax++;
+    }
+    while (rho<0 && qmax < _maxTrialsAfterFailure->value() && ! _optimizer->terminate());
 
     if (qmax == _maxTrialsAfterFailure->value() || rho==0)
-      return Terminate;
+        return Terminate;
 
-    //Stop criterium (Raul)
+    //Stop criteria (Raul)
     if((iniChi-currentChi)*1e3<iniChi)
         _nBad++;
     else
@@ -161,7 +249,7 @@ namespace g2o {
         return Terminate;
 
     return OK;
-  }
+}
 
   double OptimizationAlgorithmLevenberg::computeLambdaInit() const
   {
@@ -179,14 +267,16 @@ namespace g2o {
     return _tau*maxDiagonal;
   }
 
-  double OptimizationAlgorithmLevenberg::computeScale() const
-  {
+double OptimizationAlgorithmLevenberg::computeScale() const
+{
     double scale = 0.;
-    for (size_t j=0; j < _solver->vectorSize(); j++){
-      scale += _solver->x()[j] * (_currentLambda * _solver->x()[j] + _solver->b()[j]);
+    for (size_t j=0; j < _solver->vectorSize(); j++)
+    {
+        scale += _solver->x()[j] * (_currentLambda * _solver->x()[j] + _solver->b()[j]);
+        //cout << j << " " << _solver->x()[j] << " " << _solver->b()[j] << endl;
     }
     return scale;
-  }
+}
 
   void OptimizationAlgorithmLevenberg::setMaxTrialsAfterFailure(int max_trials)
   {
@@ -204,6 +294,31 @@ namespace g2o {
       << "\t schur= " << _solver->schur()
       << "\t lambda= " << FIXED(_currentLambda)
       << "\t levenbergIter= " << _levenbergIterations;
+  }
+
+  void OptimizationAlgorithmLevenberg::setPtrFea(FEA* pFeaInput)
+  {
+      pFEA = pFeaInput;
+  }
+
+  vector<vector<float> > OptimizationAlgorithmLevenberg::GetPointCoordinates(vector<g2o::VertexSBAPointXYZ*> vVertices)
+  {
+        vector<vector<float> > vPoints;
+
+        for (unsigned int i=0; i<pFEA->vVertices.size(); i++)
+        {
+            VertexSBAPointXYZ* v2 = vVertices[i];
+            Eigen::Matrix<double, 3, 1> mPoint = v2->estimate();
+
+            vector<float> vPoint;
+            vPoint.push_back(mPoint[0]);
+            vPoint.push_back(mPoint[1]);
+            vPoint.push_back(mPoint[2]);
+
+            vPoints.push_back(vPoint);
+        }
+
+        return vPoints;
   }
 
 } // end namespace
