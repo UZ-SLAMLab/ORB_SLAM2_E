@@ -1966,7 +1966,7 @@ bool Tracking::Relocalization()
                 int nAdded = 0;
                 int nAddedProj = 0;
 
-                for(int j=0; j<vbInliers.size(); j++)     // Set inliers as MPs in mCurrentFrame
+                for(unsigned int j=0; j<vbInliers.size(); j++)     // Set inliers as MPs in mCurrentFrame
                 {
                     if(vbInliers[j])
                     {

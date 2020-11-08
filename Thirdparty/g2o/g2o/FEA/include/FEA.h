@@ -48,6 +48,11 @@
 #include <iostream>
 #include <vector>
 #include <math.h>
+#include <fstream>
+#include <thread>
+
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/core.hpp>
 
 // G20 LIBS
 #include "../../types/types_seven_dof_expmap.h"
@@ -69,7 +74,9 @@ public:	// FUNCTIONS
     vector<vector<float> > ComputeKei(vector<vector<float> > vfPts);
 
     bool MatrixAssembly();
-    bool ComputeK1();
+
+    vector<vector<float> > InvertMatrixEigen(vector<vector<float> > m1);
+    vector<vector<float> > MultiplyMatricesEigen(vector<vector<float> > m1, vector<vector<float> > m2);
 
     void Set_u0();
 
@@ -96,27 +103,21 @@ public:	// VARIABLES
     // Frame
     unsigned int nFrameId;
 
-    // Young Modulus [Pa]
+    // Young Modulus [Pa] & Poisson Coefficient
     unsigned int E;
-
-    // Poisson Coefficient
     float nu;
 
-    // Behavior matrix
-    float D[6][6]= {};
-
-    // Lamé parameters
+    // Lamé parameters & Behaviour matrix
     float lambda = 0.0;
     float G = 0.0;
-
-    // Gauss Points
-    float fg1 = 0.0;
-    float fg2 = 0.0;
-    float fg = 0.5773502692;
-    vector<vector<float> > gs;
+    vector<vector<float> > D;
 
     // Element depth
     float h = 0.0;
+
+    // Gauss Points
+    float fg = 0.5773502692;
+    vector<vector<float> > gs;
 
     //MapPoint coordinates and normals
     vector<vector<float> > vMPsXYZN_t;
@@ -129,7 +130,6 @@ public:	// VARIABLES
     float DetK = 0.0;
     vector<vector<float> > K1;
     float DetK1 = 0.0;
-    vector<vector<int> > vnSwitchedRows;
 
     vector<vector<int> > triangles_t;
     vector<vector<int> > triangles_u;
@@ -169,6 +169,5 @@ public:	// VARIABLES
     // Debug mode
     bool bDebugMode = false;
 }; // class FEA
-
 
 #endif // FEA_H
