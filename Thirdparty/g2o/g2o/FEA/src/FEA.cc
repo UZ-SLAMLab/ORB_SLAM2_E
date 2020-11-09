@@ -245,44 +245,35 @@ void FEA::Set_uf(vector<vector<float> > vPoints){
 
 
 void FEA::ComputeDisplacement(){
-    a.clear();
-    for (unsigned int i=0; i<u0.size(); i++)
-        a.push_back(uf[i]-u0[i]);
+    vva.clear();
+    for (unsigned int i=0; i<u0.size(); i++){
+        vector<float> va;
+        va.push_back(uf[i]-u0[i]);
+        vva.push_back(va);
+    }
 }
 
 
 void FEA::ComputeForces(){
-    f.clear();
-    f.resize(Ksize);
-    for (unsigned int i=0; i<Ksize; i++){
-        float fi = 0.0;
-        for (unsigned int j=0; j<Ksize; j++)
-            if (K[i][j]!=0 && a[j]!=0)
-                fi += K[i][j] * a[j];
-        f[i] = fi;
-    }
+    vvf.clear();
+    vvf = MultiplyMatricesEigen(K,vva);
 }
 
 
 float FEA::ComputeStrainEnergy(){
-    // sE = a' · K · a
-    vector<float> aK = vector<float>(Ksize,0.0);
-    for (unsigned int i=0; i<Ksize; i++)
-    {
-        float prod = 0.0;
-        for (unsigned int j=0; j<Ksize; j++)
-            if (a[j]!=0)
-                if (K[j][i]!=0)
-                    prod += a[j] * K[j][i];
-        aK[i] = prod;
-    }
+    // sE = a' · K · a = a' · F
 
-    sE = 0.0;
-    for (unsigned int i=0; i<Ksize; i++)
-        sE += aK[i] * a[i];
+    vector<vector<float> > vvat;
+    vector<float> vvati;
+    for (unsigned int i=0; i<vva.size(); i++){
+        vvati.push_back(vva[i][0]);
+    }
+    vvat.push_back(vvati);
+
+    vector<vector<float> > vvsE = MultiplyMatricesEigen(vvat,vvf);
+    sE = vvsE[0][0];
 
     CurrentSE = sE;
-
     return sE;
 }
 

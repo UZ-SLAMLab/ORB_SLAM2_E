@@ -124,10 +124,10 @@ public:	// VARIABLES
     // Displacement
     vector<float> u0;  // Starting position of mappoints
     vector<float> uf;  // New position after being modified by the optimization
-    vector<float> a;// = vector<float>(Ksize,0.0);     // VectorAssembly(u)
+    vector<vector<float> > vva;
 
     // Forces
-    vector<float> f;// = vector<float>(Ksize,0.0);
+    vector<vector<float> > vvf;
 
     // Strain energy
     float sE;
