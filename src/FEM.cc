@@ -107,15 +107,16 @@ bool FEM::Compute(int nMode) {
     return false;
 }
 
-
+/*
 void FEM::ReadyFEA(FEA* pFEA, int nMode) {
     if (nMode == 1) {
-        pFEA->triangles_t = triangles_t;
-        pFEA->quads_t = quads_t;
-        pFEA->vIdxNewVertices = vIdxNewVertices;
+        //pFEA->triangles_t = triangles_t;
+        //pFEA->quads_t = quads_t;
+        //pFEA->vIdxNewVertices = vIdxNewVertices;
         pFEA->vNewPointsBase = vNewPointsBase;
     }
 }
+*/
 
 
 void FEM::GetMapPointCoordinates(int nMode) {

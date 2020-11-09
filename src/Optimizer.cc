@@ -729,9 +729,8 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
     /// MESH BUILDING - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     cout << "        NLO- Setting FEA" << endl;
-    if(fem.Compute(1))      // Compute matched
-    {
-        fem.ReadyFEA(pFEA,1);
+    if(fem.Compute(1)){
+        pFEA->vNewPointsBase = fem.GetNewPointsBase();
 
         fea.u0 = fem.GetU0();
         fea.vMPsXYZN_t  = fem.GetPointsL1();

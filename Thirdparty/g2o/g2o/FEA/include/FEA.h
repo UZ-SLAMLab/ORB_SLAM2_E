@@ -54,7 +54,6 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
 
-// G20 LIBS
 #include "../../types/types_seven_dof_expmap.h"
 
 
@@ -64,32 +63,22 @@ class FEA
 {
 public:	// FUNCTIONS
 
-	//Constructor
-    //FEA(unsigned int input_nFrameId, unsigned int input_E, float input_nu, bool bSetDebug);
+	//Constructor & Destructor
     FEA(unsigned int input_nFrameId, unsigned int input_E, float input_nu, float input_h, float input_fg1, bool bSetDebug);
-
-    //Destructor
     ~FEA();
-
-    vector<vector<float> > ComputeKei(vector<vector<float> > vfPts);
-
-    bool MatrixAssembly();
 
     vector<vector<float> > InvertMatrixEigen(vector<vector<float> > m1);
     vector<vector<float> > MultiplyMatricesEigen(vector<vector<float> > m1, vector<vector<float> > m2);
 
     void Set_u0();
-
     void Set_uf(vector<vector<float> > vPoints);
-
     void ComputeDisplacement();
 
     void ComputeForces();
 
     float ComputeStrainEnergy();
-    float NormalizeStrainEnergy();
-
     float GetStrainEnergy();
+    float NormalizeStrainEnergy();
     float GetNormalizedStrainEnergy();
 
     void setbfea(bool bSet);
@@ -127,17 +116,8 @@ public:	// VARIABLES
 
     unsigned int Ksize;// = 0;
     vector<vector<float> > K;
-    float DetK = 0.0;
     vector<vector<float> > K1;
-    float DetK1 = 0.0;
 
-    vector<vector<int> > triangles_t;
-    vector<vector<int> > triangles_u;
-    vector<vector<int> > quads_t;
-    vector<vector<int> > quads_u;
-
-    vector<vector<int> > vIdxNewVertices;
-    vector<vector<int> > vIdxNewVertices_u;
     vector<vector<int> > vNewPointsBase;
     vector<vector<int> > vNewPointsBase_u;
 

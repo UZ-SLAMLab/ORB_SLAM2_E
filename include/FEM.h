@@ -123,7 +123,7 @@ public:	// FUNCTIONS
     // Duplicates the previously generated mesh at a distance, builds a 3D structure.
     void SetSecondLayer(int nMode);
 
-    void ReadyFEA(FEA* pFEA, int nMode);
+    //void ReadyFEA(FEA* pFEA, int nMode);
 
     vector<vector<float> > ComputeKei(vector<vector<float> > vfPts);
 
