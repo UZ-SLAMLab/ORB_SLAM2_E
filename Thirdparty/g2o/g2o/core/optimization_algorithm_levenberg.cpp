@@ -82,11 +82,11 @@ OptimizationAlgorithm::SolverResult OptimizationAlgorithmLevenberg::solve(int it
 
     if (bInFEA)
     {
-        //vector<vector<float> > vPoints = GetPointCoordinates(pFEA->vVertices);
-        pFEA->setbfea(true);
+        //vector<vector<float> > vPoints = GetPointCoordinates(pFEA2->vVertices);
+        pFEA2->setbfea(true);
         _optimizer->computeActiveErrors();
-        pFEA->setbfea(false);
-        v1_1 = pFEA->vVertices[5];      //Debug
+        pFEA2->setbfea(false);
+        v1_1 = pFEA2->vVertices[5];      //Debug
     }
     else
         _optimizer->computeActiveErrors();
@@ -102,7 +102,7 @@ OptimizationAlgorithm::SolverResult OptimizationAlgorithmLevenberg::solve(int it
     double tempChi=currentChi;
     double iniChi = currentChi;
 
-    if (bInFEA) if (pFEA->bDebugMode) cout << "           - iniChi before FEM = " << iniChi << endl;
+    if (bInFEA) if (pFEA2->bDebugMode) cout << "           - iniChi before FEA = " << iniChi << endl;
 
     _solver->buildSystem();
     if (globalStats)
@@ -148,9 +148,9 @@ OptimizationAlgorithm::SolverResult OptimizationAlgorithmLevenberg::solve(int it
 
         if (bInFEA)
         {
-            pFEA->setbfea2(true);
+            pFEA2->setbfea2(true);
             _optimizer->computeActiveErrors();  // Computes reprojection errors and stores them in _error
-            pFEA->setbfea2(false);
+            pFEA2->setbfea2(false);
         }
         else
             _optimizer->computeActiveErrors();  // Computes reprojection errors and stores them in _error
@@ -165,20 +165,20 @@ OptimizationAlgorithm::SolverResult OptimizationAlgorithmLevenberg::solve(int it
             float sE = 0.0;
             float nsE = 0.0;
 
-            vector<vector<float> > vPoints = GetPointCoordinates(pFEA->vVertices);
+            vector<vector<float> > vPoints = GetPointCoordinates(pFEA2->vVertices);
 
-            pFEA->Set_uf(vPoints);
-            pFEA->ComputeDisplacement();
-            pFEA->ComputeForces();
+            pFEA2->Set_uf(vPoints);
+            pFEA2->ComputeDisplacement();
+            pFEA2->ComputeForces();
 
-            sE = pFEA->ComputeStrainEnergy();
-            nsE = pFEA->NormalizeStrainEnergy();
+            sE = pFEA2->ComputeStrainEnergy();
+            nsE = pFEA2->NormalizeStrainEnergy();
 
             //Debug
             /*
-            if (pFEA->bDebugMode)
+            if (pFEA2->bDebugMode)
             {
-                v1_2 = pFEA->vVertices[5];
+                v1_2 = pFEA2->vVertices[5];
                 Eigen::Matrix<double, 3, 1> p1_1 = v1_1->estimate();
                 Eigen::Matrix<double, 3, 1> p1_2 = v1_2->estimate();
                 cout << "----------------------------------" << endl;
@@ -197,22 +197,22 @@ OptimizationAlgorithm::SolverResult OptimizationAlgorithmLevenberg::solve(int it
             {
                 w_rE = 1.0;
                 w_sE = 1.0;
-                if (pFEA->bDebugMode) cout << "             currentChi1 / nsE / fFactorFEA = " << currentChi << " / " << nsE << " / " << fFactorFEA << endl;
+                if (pFEA2->bDebugMode) cout << "             currentChi1 / nsE / fFactorFEA = " << currentChi << " / " << nsE << " / " << fFactorFEA << endl;
                 currentChi += nsE/fFactorFEA;
-                if (pFEA->bDebugMode) cout << "             currentChi2 = " << currentChi << endl;
+                if (pFEA2->bDebugMode) cout << "             currentChi2 = " << currentChi << endl;
             }
             else
                 cout << "             currentChi = " << currentChi << endl;
 
             nsE /= fFactorFEA;
-            if (pFEA->bDebugMode) cout << "             wOPT = tempChi = w_rE·rE + w_sE·sE = " << w_rE << "·" << tempChi << " + " << w_sE << "·" << nsE << " = " << (w_rE*tempChi + w_sE*nsE) << endl;
+            if (pFEA2->bDebugMode) cout << "             wOPT = tempChi = w_rE·rE + w_sE·sE = " << w_rE << "·" << tempChi << " + " << w_sE << "·" << nsE << " = " << (w_rE*tempChi + w_sE*nsE) << endl;
             tempChi = w_rE*tempChi + w_sE*nsE;
         }
 
         rho = (currentChi-tempChi);         // Difference between reprojection errors before and after the optimization
         double scale = computeScale();
         scale += 1e-3; // make sure it's non-zero :)
-        if (bInFEA) if (pFEA->bDebugMode) cout << "             rho = (currentChi - tempChi)/scale = (" << currentChi << " - " << tempChi << ")/" << scale << " = " << rho/scale << endl;
+        if (bInFEA) if (pFEA2->bDebugMode) cout << "             rho = (currentChi - tempChi)/scale = (" << currentChi << " - " << tempChi << ")/" << scale << " = " << rho/scale << endl;
         rho /=  scale;
 
         if (rho>0 && g2o_isfinite(tempChi)) // last step was good
@@ -296,16 +296,16 @@ double OptimizationAlgorithmLevenberg::computeScale() const
       << "\t levenbergIter= " << _levenbergIterations;
   }
 
-  void OptimizationAlgorithmLevenberg::setPtrFea(FEA* pFeaInput)
+  void OptimizationAlgorithmLevenberg::setPtrFea(FEA2* pFeaInput)
   {
-      pFEA = pFeaInput;
+      pFEA2 = pFeaInput;
   }
 
   vector<vector<float> > OptimizationAlgorithmLevenberg::GetPointCoordinates(vector<g2o::VertexSBAPointXYZ*> vVertices)
   {
         vector<vector<float> > vPoints;
 
-        for (unsigned int i=0; i<pFEA->vVertices.size(); i++)
+        for (unsigned int i=0; i<pFEA2->vVertices.size(); i++)
         {
             VertexSBAPointXYZ* v2 = vVertices[i];
             Eigen::Matrix<double, 3, 1> mPoint = v2->estimate();

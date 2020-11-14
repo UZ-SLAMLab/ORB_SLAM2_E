@@ -12,6 +12,9 @@ IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE Release)
 ENDIF()
 
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 MESSAGE(STATUS "BUILD TYPE:" ${CMAKE_BUILD_TYPE})
 
 SET (G2O_LIB_TYPE SHARED)
@@ -80,13 +83,24 @@ ENDIF(EIGEN3_FOUND)
 SET(G2O_CXX_COMPILER "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER}")
 configure_file(config.h.in ${g2o_SOURCE_DIR}/config.h)
 
+
+find_package(PCL 1.7 REQUIRED)
+
 # Set up the top-level include directories
 INCLUDE_DIRECTORIES(
+${g2o_SOURCE_DIR}/../../../
 ${g2o_SOURCE_DIR}/core
 ${g2o_SOURCE_DIR}/types
 ${g2o_SOURCE_DIR}/stuff 
 ${g2o_SOURCE_DIR}/FEA
+${PCL_INCLUDE_DIRS}
 ${G2O_EIGEN3_INCLUDE})
+
+link_directories(
+${PCL_LIBRARY_DIRS}
+${PCL_LIBRARY_DIRS}/..
+)
+add_definitions(${PCL_DEFINITIONS})
 
 # Include the subdirectories
 ADD_LIBRARY(g2o ${G2O_LIB_TYPE}
@@ -175,6 +189,8 @@ g2o/stuff/string_tools.cpp
 g2o/stuff/property.cpp       
 g2o/stuff/property.h
 #FEA
-g2o/FEA/include/FEA.h
-g2o/FEA/src/FEA.cc
+#g2o/FEA/include/FEA.h
+g2o/FEA/include/FEA2.h
+#g2o/FEA/src/FEA.cc
+g2o/FEA/src/FEA2.cc
 )

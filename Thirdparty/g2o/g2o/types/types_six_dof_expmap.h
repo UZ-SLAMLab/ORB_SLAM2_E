@@ -44,7 +44,7 @@
 
 //#include <vector>
 
-#include "../FEA/include/FEA.h"
+#include "../FEA/include/FEA2.h"
 
 namespace g2o {
 namespace types_six_dof_expmap {
@@ -111,7 +111,7 @@ public:
             std::cout << mPoint[0] << " " << mPoint[1] << " " << mPoint[2] << std::endl;
             /*if (ptrPoint3D)
             {
-                //pFEA->vMPsXYZN_t.clear();
+                //pFEA2->vMPsXYZN_t.clear();
                 ptrPoint3D->push_back(vPoint[0]);
                 ptrPoint3D->push_back(vPoint[1]);
                 ptrPoint3D->push_back(vPoint[2]);
@@ -148,10 +148,10 @@ public:
     }
 
 
-    /*FEA* pFEA = NULL;
-    void setPtrFea(FEA* pFeaInput)
+    /*FEA2* pFEA2 = NULL;
+    void setPtrFea(FEA2* pFeaInput)
     {
-        pFEA = pFeaInput;
+        pFEA2 = pFeaInput;
     }*/
 
     bool bInFEA = false;

@@ -72,8 +72,8 @@ void SparseOptimizer::computeActiveErrors()
 #   pragma omp parallel for default (shared) if (_activeEdges.size() > 50)
 #   endif
 
-    if (pFEA)
-        pFEA->vMPsXYZN_t.clear();
+    if (pFEA2)
+        pFEA2->vMPsXYZN_t.clear();
 
     for (int k = 0; k < static_cast<int>(_activeEdges.size()); ++k)
     {
@@ -82,22 +82,22 @@ void SparseOptimizer::computeActiveErrors()
 
         OptimizableGraph::Edge* e = _activeEdges[k];
 
-        /*if (pFEA)
+        /*if (pFEA2)
         {
             e->setPtr3D(pPoint3d);
-            pFEA->nCurrEdge = k;
+            pFEA2->nCurrEdge = k;
         }*/
 
         e->computeError();
 
-        /*if (pFEA)
+        /*if (pFEA2)
         {
             vector<float> sPoint3d;
-            pFEA->vMPsXYZN_t.push_back(sPoint3d);
+            pFEA2->vMPsXYZN_t.push_back(sPoint3d);
         }*/
 
 
-        //if (pFEA)
+        //if (pFEA2)
         //{
         //    cout << "sPoint3d.size() = " << sPoint3d.size() << endl;
             //cout << "sPoint3d = " << sPoint3d[0] << "  " << sPoint3d[1] << "  " << sPoint3d[2] << endl;
@@ -697,9 +697,9 @@ int SparseOptimizer::optimize(int iterations, bool online)
     discardTop(_activeVertices);
   }
 
-  void SparseOptimizer::setPtrFea(FEA* pFeaInput)
+  void SparseOptimizer::setPtrFea(FEA2* pFeaInput)
   {
-      pFEA = pFeaInput;
+      pFEA2 = pFeaInput;
   }
 
 } // end namespace

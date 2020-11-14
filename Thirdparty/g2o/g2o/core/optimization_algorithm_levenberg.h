@@ -29,7 +29,7 @@
 
 #include "optimization_algorithm_with_hessian.h"
 
-#include "../FEA/include/FEA.h"
+#include "../FEA/include/FEA2.h"
 
 namespace g2o {
 
@@ -67,8 +67,8 @@ namespace g2o {
       //! return the number of levenberg iterations performed in the last round
       int levenbergIteration() { return _levenbergIterations;}
 
-      FEA* pFEA;
-	  void setPtrFea(FEA* pFeaInput);
+      FEA2* pFEA2;
+	  void setPtrFea(FEA2* pFeaInput);
 
 	  bool bInFEA = false;
 	  float fFactorFEA = 1.0;

@@ -20,8 +20,7 @@
 
 // ORBSLAM2 LIBRARIES
 #include "Optimizer.h"
-#include "FEM.h"
-#include "Thirdparty/g2o/g2o/FEA/include/FEA.h"
+#include "Thirdparty/g2o/g2o/FEA/include/FEA2.h"
 
 // G2O LIBRARIES
 #include "Thirdparty/g2o/g2o/core/block_solver.h"
@@ -57,11 +56,12 @@
 
 #include<mutex>
 
+
 using namespace pcl;
+
 
 namespace ORB_SLAM2
 {
-
 
 void Optimizer::GlobalBundleAdjustemnt(Map* pMap, int nIterations, bool* pbStopFlag, const unsigned long nLoopKF, const bool bRobust)
 {
@@ -484,9 +484,8 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
     const float in_h = 0.5;
     const float in_fg1 = 0.577350269;
 
-    FEM fem(pFrame->mnId,in_E,in_nu,in_h,in_fg1,bDebug);
-    FEA fea(pFrame->mnId,in_E,in_nu,in_h,in_fg1,bDebug);
-    FEA* pFEA = &fea;
+    FEA2 fea2(pFrame->mnId,in_E,in_nu,in_h,in_fg1,bDebug);
+    FEA2* pFEA2 = &fea2;
 
     // Configure g2o
     g2o::SparseOptimizer optimizer;
@@ -497,9 +496,9 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
     optimizer.setAlgorithm(solver);
     optimizer.setVerbose(false);
 
-    optimizer.setPtrFea(pFEA);
-    solver->setPtrFea(pFEA);
-    solver->setbfea(true);      //Set bInFEA in optimization_algorithm_levenberg
+    optimizer.setPtrFea(pFEA2);
+    solver->setPtrFea(pFEA2);
+    solver->setbfea(true);      //optimization_algorithm_levenberg
 
     int nInitialCorrespondences = 0;
 
@@ -532,10 +531,12 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
             pMP->bSetForReloc = true;
             vpMapPoints.push_back(pMP);
             vKeysUn.push_back(pFrame->mvKeysUn[i]);     //todelete
-            fem.vpKPs_t.push_back(&pFrame->mvKeys[i]);     //DrawFrame
-            fem.vpMPs_t.push_back(pMP);
-            fem.vpMPs_ut.push_back(pMP);
-            fem.idxMpF.push_back(i);
+            fea2.vpKPs_t.push_back(&pFrame->mvKeys[i]);     //DrawFrame
+            fea2.vpMPs_t.push_back(pMP);
+            fea2.vpMPs_ut.push_back(pMP);
+            fea2.idxMpF.push_back(i);
+
+
 
             map<KeyFrame*,size_t> observations = pMP->GetObservations();
             for(map<KeyFrame*,size_t>::iterator mit=observations.begin(), mend=observations.end(); mit!=mend; mit++)
@@ -601,7 +602,7 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
 
         // Restore MP and restore flag's default state
         vpMPsInFrame.push_back(pMP);
-        fem.vpMPs_ut.push_back(pMP);
+        fea2.vpMPs_ut.push_back(pMP);
         pMP->bSetForReloc = false;
     }
 
@@ -637,7 +638,7 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
         vPoint->setId(id);
         vPoint->setMarginalized(true);
         optimizer.addVertex(vPoint);                                        // Almacenar punto 3D /vértice/
-        fea.vVertices.push_back(vPoint);
+        fea2.vVertices.push_back(vPoint);
         nInitialCorrespondences++;                                          // Suma de correspondencias.
         pFrame->mvbOutlier[i] = false;                                      // Marca el punto como correcto, no outlier.
 
@@ -729,27 +730,14 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
     /// MESH BUILDING - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     cout << "        NLO- Setting FEA" << endl;
-    if(fem.Compute(1)){
-        pFEA->vNewPointsBase = fem.GetNewPointsBase();
 
-        fea.u0 = fem.GetU0();
-        fea.vMPsXYZN_t  = fem.GetPointsL1();
-        fea.vMPsXYZN_t2 = fem.GetPointsL2();
-
-        fea.Ksize = fem.GetKsize();
-        fea.K = fem.GetK();
-
-        // Draw the mesh
-        pMap->vpMPs2Draw = fem.vpMPs2Draw;
-        pFrameDrawer->vpKPs2Draw = fem.vpKPs2Draw;
-        pFrameDrawer->vpMPs2Draw = fem.vpMPs2Draw;
-
-        //if (bUseInverse)
-        //    fem.Compute(2);
+    if (fea2.Compute(1)){
+        pMap->vpMPs2Draw = fea2.vpMPs2Draw;
+        pFrameDrawer->vpKPs2Draw = fea2.vpKPs2Draw;
+        pFrameDrawer->vpMPs2Draw = fea2.vpMPs2Draw;
     }
-    else
+    else 
         return 0;
-
 
 
     /// NON-LINEAR OPTIMIZATION - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -766,9 +754,9 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
 
         cout << "        NLO- optimize(" << it << ")" << endl;
         if (it==0)
-            fea.it0 = true;
+            fea2.it0 = true;
         else
-            fea.it0 = false;
+            fea2.it0 = false;
 
         optimizer.optimize(its[it]);
 

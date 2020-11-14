@@ -33,7 +33,7 @@
 #include "sparse_block_matrix.h"
 #include "batch_stats.h"
 
-#include "../FEA/include/FEA.h"
+#include "../FEA/include/FEA2.h"
 
 #include <map>
 
@@ -292,8 +292,8 @@ namespace g2o {
     //! remove an action that should no longer be execured before computing the error vectors
     bool removeComputeErrorAction(HyperGraphAction* action);
 
-    FEA* pFEA = NULL;
-    void setPtrFea(FEA* pFeaInput);
+    FEA2* pFEA2 = NULL;
+    void setPtrFea(FEA2* pFeaInput);
 
 
     protected:
