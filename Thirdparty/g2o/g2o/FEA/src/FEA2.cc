@@ -96,10 +96,17 @@ bool FEA2::Compute(int nMode) {
 
                 MatrixAssembly(nMode);
 
-                ImposeDirichletEncastre_K(vvDir_t,100000000.0);
+                if (nMode == 1)
+                    ImposeDirichletEncastre_K(vvDir_t,100000000.0);
+                else if (nMode == 2)
+                    ImposeDirichletEncastre_K(vvDir_u,100000000.0);
 
-                if (nMode == 2)
+
+                if (nMode == 2){
                     K1 = InvertMatrixEigen(K);
+                    UpdateForces();
+                }
+                    
 
                 return true;
             }
@@ -1674,6 +1681,7 @@ float FEA2::ComputeStrainEnergy(){
     return sE;
 }
 
+
 float FEA2::NormalizeStrainEnergy(){
     //float invNormFactor = 1/fNormFactor;
     //nsE = sE*invNormFactor;
@@ -1683,6 +1691,24 @@ float FEA2::NormalizeStrainEnergy(){
 
     return nsE;
 }
+
+
+void FEA2::UpdateForces(){
+    cout << "vvf  " << vvf.size() << endl
+         << "     " << vMPsXYZN_t.size() << "  " << vMPsXYZN_t2.size() << endl
+         << "     " << vMPsXYZN_ut.size() << "  " << vMPsXYZN_ut2.size() << endl
+         << "     " << vpMPs_t.size() << "  " << vpMPs_ut.size() << endl;
+
+
+
+
+}
+
+
+
+
+
+
 
 
 float FEA2::GetStrainEnergy() { return sE; }

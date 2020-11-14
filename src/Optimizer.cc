@@ -589,11 +589,17 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
     {
         MapPoint* pMP = vpAllMapPoints[iMP];
 
+        //cout << "extra" << endl;
+
         if (pMP->bSetForReloc)
             continue;
 
+        //cout << "noreloc" << endl;
+
         if (!isInFrustum(pMP, *pFrame, mRcw, mtcw, 0.5))
             continue;
+
+        //cout << "inframe" << endl;
 
         // Restore MP and restore flag's default state
         vpMPsInFrame.push_back(pMP);
@@ -804,7 +810,6 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
                 }
             }
         }
-        //cout << "        NLO- Optimization(" << it+1 << "/4)  chi2(" << chi2[it] << ")  its(" << its[it] << ")  Correspondences(" << nInitialCorrespondences-nBad << ")" << endl;
     }
 
     // Restore default state of MP flag
@@ -815,14 +820,18 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
             pMP->bRelocCheck = true;
     }
 
-
     // Recover optimized pose and return number of inliers
     g2o::VertexSE3Expmap* vSE3_recov = static_cast<g2o::VertexSE3Expmap*>(optimizer.vertex(0));
     g2o::SE3Quat SE3quat_recov = vSE3_recov->estimate();
     cv::Mat pose = Converter::toCvMat(SE3quat_recov);
     pFrame->SetPose(pose);
 
-
+    //Build second Mesh, get possitions of all MPs present within frame limits.
+    if(fea2.vpMPs_ut.size() > 1.5 * fea2.vpMPs_t.size()){
+        if(fea2.Compute(2)){
+            cout << "        NLO- K2 computed" << endl;
+        }
+    }
 
     // Recover optimized MP positions
     for (unsigned int i=0; i<vnMobileVertices.size(); i++){
@@ -837,6 +846,7 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
         //cout << "             " << m1_0.at<float>(2) << "  " << m1_1.at<float>(2) << endl;
     }
 
+    cout << "        NLO- Completed" << endl;
     return nInitialCorrespondences-nBad;
 }
 

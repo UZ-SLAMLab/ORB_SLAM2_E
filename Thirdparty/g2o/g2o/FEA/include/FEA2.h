@@ -146,6 +146,8 @@ public:	// FUNCTIONS
     float NormalizeStrainEnergy();
     float GetNormalizedStrainEnergy();
 
+    void UpdateForces();
+
     void setbfea(bool bSet);
     void setbfea2(bool bSet);
 //    void setCurrEdge(int input);
