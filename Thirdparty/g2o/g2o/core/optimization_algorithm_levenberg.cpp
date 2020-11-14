@@ -174,6 +174,8 @@ OptimizationAlgorithm::SolverResult OptimizationAlgorithmLevenberg::solve(int it
             sE = pFEA2->ComputeStrainEnergy();
             nsE = pFEA2->NormalizeStrainEnergy();
 
+            //cout << "sE and nsE = " << sE << "    " << nsE << endl;
+
             //Debug
             /*
             if (pFEA2->bDebugMode)
@@ -190,21 +192,22 @@ OptimizationAlgorithm::SolverResult OptimizationAlgorithmLevenberg::solve(int it
             */
 
 
-            float w_rE = 2.0;
-            float w_sE = 1.0;
-            fFactorFEA = nsE/currentChi;
+            float w_rE = 1.0;
+            float w_sE = 5.0;
+            //fFactorFEA = nsE/currentChi;
             if (qmax==0)
             {
                 w_rE = 1.0;
-                w_sE = 1.0;
-                if (pFEA2->bDebugMode) cout << "             currentChi1 / nsE / fFactorFEA = " << currentChi << " / " << nsE << " / " << fFactorFEA << endl;
-                currentChi += nsE/fFactorFEA;
+                w_sE = 2.0;
+                if (pFEA2->bDebugMode) cout << "             currentChi1 / sE / nsE / fFactorFEA = " << currentChi << " / " << sE << " / " << nsE << " / " << fFactorFEA << endl;
+                //currentChi += nsE/fFactorFEA;
+                currentChi += nsE;
                 if (pFEA2->bDebugMode) cout << "             currentChi2 = " << currentChi << endl;
             }
             else
                 cout << "             currentChi = " << currentChi << endl;
 
-            nsE /= fFactorFEA;
+            //nsE /= fFactorFEA;
             if (pFEA2->bDebugMode) cout << "             wOPT = tempChi = w_rE·rE + w_sE·sE = " << w_rE << "·" << tempChi << " + " << w_sE << "·" << nsE << " = " << (w_rE*tempChi + w_sE*nsE) << endl;
             tempChi = w_rE*tempChi + w_sE*nsE;
         }

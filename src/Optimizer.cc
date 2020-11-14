@@ -478,13 +478,13 @@ int Optimizer::PoseOptimization(Frame *pFrame)
 int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer)
 {
     // Simulation parameters & Model constants
-    bool bDebug = true;
-    const unsigned int in_E = 3500;
-    const float in_nu = 0.495;
-    const float in_h = 0.5;
-    const float in_fg1 = 0.577350269;
+    //bool bDebug = true;
+    //const unsigned int in_E = 3500;
+    //const float in_nu = 0.495;
+    //const float in_h = 0.5;
+    //const float in_fg1 = 0.577350269;
 
-    FEA2 fea2(pFrame->mnId,in_E,in_nu,in_h,in_fg1,bDebug);
+    FEA2 fea2(pFrame->mnId,3500,0.495,0.5,0.577350269,true);
     FEA2* pFEA2 = &fea2;
 
     // Configure g2o
@@ -495,18 +495,16 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
     g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
     optimizer.setAlgorithm(solver);
     optimizer.setVerbose(false);
-
     optimizer.setPtrFea(pFEA2);
     solver->setPtrFea(pFEA2);
-    solver->setbfea(true);      //optimization_algorithm_levenberg
+    solver->setbfea(true);
 
     int nInitialCorrespondences = 0;
 
 
     /// SET VERTICES
 
-    /// VERTEX - Movil - Current Camera Pose
-    // Set current camera pose as vertex(0)
+    /// VERTEX - Movil - Current Camera Pose = vertex(0)
     g2o::VertexSE3Expmap * vSE3 = new g2o::VertexSE3Expmap();
     vSE3->setEstimate(Converter::toSE3Quat(pFrame->mTcw));
     vSE3->setId(0);
@@ -514,7 +512,6 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
     optimizer.addVertex(vSE3);
 
     /// VERTEX - Fixed - KFs that observe matched MPs in current frame
-    // Set KFs that observe the matched MPs in the current F as vertices
     vector<MapPoint*> vpMapPoints;//todelete
     vector<cv::KeyPoint> vKeysUn;//todelete
     // vector<cv::KeyPoint> vKeys;     //DrawFrame
@@ -535,8 +532,6 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
             fea2.vpMPs_t.push_back(pMP);
             fea2.vpMPs_ut.push_back(pMP);
             fea2.idxMpF.push_back(i);
-
-
 
             map<KeyFrame*,size_t> observations = pMP->GetObservations();
             for(map<KeyFrame*,size_t>::iterator mit=observations.begin(), mend=observations.end(); mit!=mend; mit++)
@@ -626,6 +621,8 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
     vnIndexEdge.reserve(N);
     vpMapPointEdge.reserve(N);
 
+    vector<int> vnMobileVertices;
+
     const float delta = sqrt(5.991);    // thHuber(LocalBundleAdjustment)
     for (unsigned int i=0; i<vpMapPoints.size(); i++)
     {
@@ -641,6 +638,17 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
         fea2.vVertices.push_back(vPoint);
         nInitialCorrespondences++;                                          // Suma de correspondencias.
         pFrame->mvbOutlier[i] = false;                                      // Marca el punto como correcto, no outlier.
+        vnMobileVertices.push_back(id);
+
+        /*
+        Mat mpworldpos = pMP->GetWorldPos();
+        cout << "Mat World Post  " << mpworldpos.rows << "   " << mpworldpos.cols << endl;
+        float PcX = mpworldpos.at<float>(0);
+        float PcY = mpworldpos.at<float>(1);
+        float PcZ = mpworldpos.at<float>(2);
+        cout << "pos   " << PcX << "  " << PcY << "  " << PcZ << endl;
+        */
+
 
         // First we set an edge between the MP and the current Frame
         Eigen::Matrix<double,2,1> obsF;
@@ -813,6 +821,21 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
     g2o::SE3Quat SE3quat_recov = vSE3_recov->estimate();
     cv::Mat pose = Converter::toCvMat(SE3quat_recov);
     pFrame->SetPose(pose);
+
+
+
+    // Recover optimized MP positions
+    for (unsigned int i=0; i<vnMobileVertices.size(); i++){
+        g2o::VertexSBAPointXYZ* vSBA_recov = static_cast<g2o::VertexSBAPointXYZ*>(optimizer.vertex(vnMobileVertices[i]));
+        Eigen::Matrix<double, 3, 1> p1_1 = vSBA_recov->estimate();
+        Mat m1_1 = Converter::toCvMat(p1_1);
+        vpMapPoints[i]->SetWorldPos(m1_1);
+
+        //Mat m1_0 = vpMapPoints[i]->GetWorldPos();
+        //cout << " Point 0 1   " << m1_0.at<float>(0) << "  " << m1_1.at<float>(0) << endl;
+        //cout << "             " << m1_0.at<float>(1) << "  " << m1_1.at<float>(1) << endl;
+        //cout << "             " << m1_0.at<float>(2) << "  " << m1_1.at<float>(2) << endl;
+    }
 
     return nInitialCorrespondences-nBad;
 }

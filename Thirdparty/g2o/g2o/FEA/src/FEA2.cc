@@ -1667,13 +1667,16 @@ float FEA2::ComputeStrainEnergy(){
     vector<vector<float> > vvsE = MultiplyMatricesEigen(vvat,vvf);
     sE = vvsE[0][0];
 
+    if (sE < 0.0)
+        sE = -sE;
+
     CurrentSE = sE;
     return sE;
 }
 
 float FEA2::NormalizeStrainEnergy(){
-    float invNormFactor = 1/fNormFactor;
-    nsE = sE*invNormFactor;
+    //float invNormFactor = 1/fNormFactor;
+    //nsE = sE*invNormFactor;
 
     int nEl = Ksize/3;
     nsE = sE / nEl;
