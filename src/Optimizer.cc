@@ -475,7 +475,7 @@ int Optimizer::PoseOptimization(Frame *pFrame)
     return nInitialCorrespondences-nBad;
 }
 
-int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer)
+int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer, bool bDebugMode)
 {
     // Simulation parameters & Model constants
     //bool bDebug = true;
@@ -484,7 +484,7 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
     //const float in_h = 0.5;
     //const float in_fg1 = 0.577350269;
 
-    FEA2 fea2(pFrame->mnId,3500,0.495,0.5,0.577350269,true);
+    FEA2 fea2(pFrame->mnId,3500,0.495,0.5,0.577350269,bDebugMode);
     FEA2* pFEA2 = &fea2;
 
     // Configure g2o
@@ -743,7 +743,7 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
 
     /// MESH BUILDING - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-    cout << "        NLO- Setting FEA" << endl;
+    cout << "        NLO- Compute FEA" << endl;
 
     if (fea2.Compute(1)){
         pMap->vpMPs2Draw = fea2.vpMPs2Draw;
@@ -766,7 +766,7 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
     {
         optimizer.initializeOptimization(0);
 
-        cout << "        NLO- optimize(" << it << ")" << endl;
+        if (bDebugMode) cout << "        NLO- optimize(" << it << ")" << endl;
         if (it==0)
             fea2.it0 = true;
         else
@@ -827,7 +827,7 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
     pFrame->SetPose(pose);
 
     //Build second Mesh, get possitions of all MPs present within frame limits.
-    if(fea2.vpMPs_ut.size() > 1.5 * fea2.vpMPs_t.size()){
+    if(fea2.vpMPs_ut.size() > 1.5*fea2.vpMPs_t.size()){
         if(fea2.Compute(2)){
             cout << "        NLO- K2 computed" << endl;
         }

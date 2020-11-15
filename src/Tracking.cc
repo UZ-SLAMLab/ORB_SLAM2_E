@@ -382,23 +382,6 @@ void Tracking::Track()
         // System is initialized. Track Frame.
         bool bOK;
 
-        /*
-        kpiFN = kpiP - kpiFN;
-
-        int kpiAct = kpiTP + kpiFP;
-        int kpiPrecision = 0.0;
-        if (kpiAct>0)
-            kpiPrecision = kpiTP / kpiAct;
-
-        int kpiGoal = kpiTP + kpiFN;
-        int kpiRecall = 0.0;
-        if (kpiGoal>0)
-            kpiRecall = kpiTP / kpiGoal;
-
-        cout << "kpi P-TP-FP-FN-Prec-Rec = " << kpiP <<"-"<< kpiTP <<" - "<< kpiFP <<" - "<< kpiFN <<" - "<< kpiPrecision <<" - "<< kpiRecall << endl;
-        */
-
-
         // Initial camera pose estimation using motion model or relocalization (if tracking is lost)
         if(!mbOnlyTracking)
         {
@@ -593,9 +576,7 @@ void Tracking::Track()
 
             kpiTot++;
 
-            cout << "kpiTot = " << kpiTot << "\tkpiTP = " << kpiTP << "\tkpiFP = " << kpiFP << "\tkpiFN = " << kpiFN << endl;
-            cout << fixed << setprecision(5) << "kpiPr = " << kpiPr << "\tkpiRc = " << kpiRc << endl;
-            cout << mCurrentFrame.mnId << "\t\t" << mnLastRelocFrameId << endl;
+            cout << "kpiTot = " << kpiTot << "\tkpiTP = " << kpiTP << "\tkpiFP = " << kpiFP << "\tkpiFN = " << kpiFN << fixed << setprecision(3) << "\tkpiPr = " << kpiPr << "\tkpiRc = " << kpiRc << endl;
 
 
 
@@ -1798,7 +1779,7 @@ bool Tracking::Relocalization()
     float reloct11, reloct12;
     double relocf = cv::getTickFrequency();
 
-    cout << "-R- Computing frame BoW and looking for Reloc candidates" << endl;
+    if (bDebugMode) cout << "-R- Computing frame BoW and looking for Reloc candidates" << endl;
 
     // Compute Bag of Words Vector
     mCurrentFrame.ComputeBoW();
@@ -1820,7 +1801,7 @@ bool Tracking::Relocalization()
     }
 
     const int nKFs = vpCandidateKFs.size();
-    cout << "-R- " << nKFs << " candidate KFs found" << endl;
+    if (bDebugMode) cout << "-R- " << nKFs << " candidate KFs found" << endl;
     pStatsReloc->NewLine();
     pStatsReloc->AddValue(nKFs);
     pStatsRelocS1->AddValue(nKFs);
@@ -1844,7 +1825,7 @@ bool Tracking::Relocalization()
     int nCandidates15 = 0;  //(>15)
     vector<int> number_of_matches;
 
-    cout << "-R- Looking for ORB matches using DBoW" << endl;
+    if (bDebugMode) cout << "-R- Looking for ORB matches using DBoW" << endl;
     for(int i=0; i<nKFs; i++)
     {
         KeyFrame* pKF = vpCandidateKFs[i];
@@ -1854,16 +1835,16 @@ bool Tracking::Relocalization()
         {
             int nmatches = matcher.SearchByBoW(pKF,mCurrentFrame,vvpMapPointMatches[i]);
             number_of_matches.push_back(nmatches);
-            cout << "    KF " << i+1 << "of" << vpCandidateKFs.size() << " (KFid " << pKF->mnId << "):  ";
+            if (bDebugMode) cout << "    KF " << i+1 << "of" << vpCandidateKFs.size() << " (KFid " << pKF->mnId << "):  ";
             if(nmatches<4)  // prev 15
             {
                 vbDiscarded[i] = true;
-                cout << "NOK (" << nmatches << " matches, not enough)" << endl;
+                if (bDebugMode) cout << "NOK (" << nmatches << " matches, not enough)" << endl;
                 continue;
             }
             else
             {
-                cout << "OK (" << nmatches << " matches, PnPsolver added)" << endl;
+                if (bDebugMode) cout << "OK (" << nmatches << " matches, PnPsolver added)" << endl;
                 PnPsolver* pSolver = new PnPsolver(mCurrentFrame,vvpMapPointMatches[i]);
                 pSolver->SetRansacParameters(0.99,10,300,4,0.5,5.991);
                 vpPnPsolvers[i] = pSolver;
@@ -1909,7 +1890,7 @@ bool Tracking::Relocalization()
                 continue;
 
             nCount++;
-            cout << "    Candidate " << nCount << endl;
+            if (bDebugMode) cout << "    Candidate " << nCount << endl;
 
             // Perform 5 Ransac Iterations
             vector<bool> vbInliers;
@@ -1942,7 +1923,7 @@ bool Tracking::Relocalization()
                 nPosesNR++;
                 pStatsReloc->AddValue(nInliers);
             }
-            cout << "        PnP- Iteration time " << reloct1 << endl;
+            if (bDebugMode) cout << "        PnP- Iteration time " << reloct1 << endl;
             pStatsReloc->AddValueFl(reloct1);
 
             // If Ransac reachs max. iterations discard keyframe
@@ -1997,7 +1978,7 @@ bool Tracking::Relocalization()
                         nTotalAdded++;
                 }
 
-                cout << "        " << nAdded << " inliers added." << endl;
+                if (bDebugMode) cout << "        " << nAdded << " inliers added." << endl;
                 cout << "        Inliers added: DBoW(" << nAdded << ") Proj(" << nAddedProj << ")" << endl;
                 pStatsReloc->AddValue(nAdded);
                 int nGood = 0;
@@ -2028,28 +2009,28 @@ bool Tracking::Relocalization()
 
                 // Restore camPose from Backup. Attempt NonRigid Relocation. Save Non-Rigid pose optimization
                 mTcwBackup.copyTo(mCurrentFrame.mTcw);
-                int nGoodNR = Optimizer::PoseOptimizationNR(&mCurrentFrame,mpMap,mpFrameDrawer,mpMapDrawer);
+                int nGoodNR = Optimizer::PoseOptimizationNR(&mCurrentFrame,mpMap,mpFrameDrawer,mpMapDrawer,bDebugMode);
                 mCurrentFrame.mTcw.copyTo(mTcwNR);
                 SetRigidityFlag(false);
                 mCurrentFrame.mTcw.copyTo(mTcwBackup);
 
                 reloct23 = cv::getTickCount();
                 reloct2_NR = (reloct23-reloct22)/relocf;
-                cout << "             S1- Time(R-NR)(" << reloct2_R << "-" << reloct2_NR << ") \t R(" << nGoodR << ")  NR(" << nGoodNR << ") \t ";
+                if (bDebugMode) cout << "             S1- Time(R-NR)(" << reloct2_R << "-" << reloct2_NR << ") \t R(" << nGoodR << ")  NR(" << nGoodNR << ") \t ";
                 if((nGoodR<10) && (nGoodNR<10))
                 {
-                    cout << "Not enough." << endl;
+                    if (bDebugMode) cout << "Not enough." << endl;
                     //continue;
                 }
                 else if (nGoodR>=10 && nGoodNR<10)
                 {
-                    cout << "Enough rigid." << endl;
+                    if (bDebugMode) cout << "Enough rigid." << endl;
                     mTcwR.copyTo(mCurrentFrame.mTcw);
                     nGood = nGoodR;
                 }
                 else if (nGoodNR>=10)
                 {
-                    cout << "Enough non-rigid." << endl;
+                    if (bDebugMode) cout << "Enough non-rigid." << endl;
                     nGood = nGoodNR;
                 }
 
@@ -2067,8 +2048,8 @@ bool Tracking::Relocalization()
                 // If few inliers, search by projection in a coarse window and optimize again
                 if(nGood<50)
                 {
-                    cout << "                 Few inliers (" << nGood << "<50)." << endl;
-                    cout << "             S2- Search in a coarse window (projection)." << endl;
+                    if (bDebugMode) cout << "                 Few inliers (" << nGood << "<50)." << endl;
+                    if (bDebugMode) cout << "             S2- Search in a coarse window (projection)." << endl;
                     int nadditional = matcher2.SearchByProjection(mCurrentFrame,vpCandidateKFs[i],sFound,10,100);
                     cout << "                 " << nadditional+nGood << " inliers pre-optimization." << endl;
 
@@ -2089,7 +2070,7 @@ bool Tracking::Relocalization()
                         reloct3_R = (reloct32-reloct31)/relocf;
 
                         mTcwBackup.copyTo(mCurrentFrame.mTcw);
-                        nGoodNR = Optimizer::PoseOptimizationNR(&mCurrentFrame,mpMap,mpFrameDrawer,mpMapDrawer);
+                        nGoodNR = Optimizer::PoseOptimizationNR(&mCurrentFrame,mpMap,mpFrameDrawer,mpMapDrawer,bDebugMode);
                         mCurrentFrame.mTcw.copyTo(mTcwNR);
                         SetRigidityFlag(false);
                         mCurrentFrame.mTcw.copyTo(mTcwBackup);
@@ -2100,21 +2081,21 @@ bool Tracking::Relocalization()
                         pStatsReloc->AddValue(nGoodNR);
                         pStatsReloc->AddValueFl(reloct3_NR);
 
-                        cout << "                 Time(R-NR)(" << reloct3_R << "-" << reloct3_NR << ") \t R(" << nGoodR << ")  NR(" << nGoodNR << ") \t ";
+                        if (bDebugMode) cout << "                 Time(R-NR)(" << reloct3_R << "-" << reloct3_NR << ") \t R(" << nGoodR << ")  NR(" << nGoodNR << ") \t ";
                         if((nGoodR<10) && (nGoodNR<10))
                         {
-                            cout << "Not enough." << endl;
+                            if (bDebugMode) cout << "Not enough." << endl;
                             //continue;
                         }
                         else if (nGoodR>=10 && nGoodNR<10)
                         {
-                            cout << "Enough rigid." << endl;
+                            if (bDebugMode) cout << "Enough rigid." << endl;
                             mTcwR.copyTo(mCurrentFrame.mTcw);
                             nGood = nGoodR;
                         }
                         else if (nGoodNR>=10)
                         {
-                            cout << "Enough non-rigid." << endl;
+                            if (bDebugMode) cout << "Enough non-rigid." << endl;
                             nGood = nGoodNR;
                         }
 
@@ -2125,17 +2106,17 @@ bool Tracking::Relocalization()
                         // the camera has been already optimized with many points
                         if(nGood>30 && nGood<50)
                         {
-                            cout << "                 Still not enough (30<" << nGood << "<50)." << endl;
-                            cout << "             S3- Search in a narrowed window (projection)." << endl;
+                            if (bDebugMode) cout << "                 Still not enough (30<" << nGood << "<50)." << endl;
+                            if (bDebugMode) cout << "             S3- Search in a narrowed window (projection)." << endl;
                             sFound.clear();
                             for(int ip =0; ip<mCurrentFrame.N; ip++)
                                 if(mCurrentFrame.mvpMapPoints[ip])
                                     sFound.insert(mCurrentFrame.mvpMapPoints[ip]);
                             nadditional =matcher2.SearchByProjection(mCurrentFrame,vpCandidateKFs[i],sFound,3,64);
-                            cout << "        " << nadditional+nGood << " inliers pre-optimization." << endl;
+                            if (bDebugMode) cout << "        " << nadditional+nGood << " inliers pre-optimization." << endl;
 
                             if (nadditional+nGood<50)
-                                cout << "                 not enough (" << nadditional+nGood << "<50)." << endl;
+                                if (bDebugMode) cout << "                 not enough (" << nadditional+nGood << "<50)." << endl;
 
                             // Final optimization
                             if(nGood+nadditional>=50)
@@ -2151,27 +2132,27 @@ bool Tracking::Relocalization()
                                 reloct4_R = (reloct42-reloct41)/relocf;
 
                                 mTcwBackup.copyTo(mCurrentFrame.mTcw);
-                                nGoodNR = Optimizer::PoseOptimizationNR(&mCurrentFrame,mpMap,mpFrameDrawer,mpMapDrawer);
+                                nGoodNR = Optimizer::PoseOptimizationNR(&mCurrentFrame,mpMap,mpFrameDrawer,mpMapDrawer,bDebugMode);
                                 mCurrentFrame.mTcw.copyTo(mTcwNR);
                                 SetRigidityFlag(false);
 
                                 reloct43 = getTickCount();
                                 reloct4_NR = (reloct43-reloct42)/relocf;
-                                cout << "                 Time(R-NR)(" << reloct4_R << "-" << reloct4_NR << ") \t R(" << nGoodR << ")  NR(" << nGoodNR << ") \t ";
+                                if (bDebugMode) cout << "                 Time(R-NR)(" << reloct4_R << "-" << reloct4_NR << ") \t R(" << nGoodR << ")  NR(" << nGoodNR << ") \t ";
                                 if((nGoodR<50) && (nGoodNR<50))
                                 {
-                                    cout << "Not enough." << endl;
+                                    if (bDebugMode) cout << "Not enough." << endl;
                                     //continue;
                                 }
                                 else if (nGoodR>=50 && nGoodNR<50)
                                 {
-                                    cout << "Enough rigid." << endl;
+                                    if (bDebugMode) cout << "Enough rigid." << endl;
                                     mTcwR.copyTo(mCurrentFrame.mTcw);
                                     nGood = nGoodR;
                                 }
                                 else if (nGoodNR>=50)
                                 {
-                                    cout << "Enough non-rigid." << endl;
+                                    if (bDebugMode) cout << "Enough non-rigid." << endl;
                                     nGood = nGoodNR;
                                 }
 

@@ -72,6 +72,7 @@ void Viewer::Run()
     pangolin::Var<bool> menuShowGraph("menu.Show Graph",true,true);
     pangolin::Var<bool> menuLocalizationMode("menu.Localization Mode",false,true);
     pangolin::Var<bool> menuFEA("menu.FEA",false,true);
+    pangolin::Var<bool> menuDebugMode("menu.Debug Mode",false,true);
     pangolin::Var<bool> menuReset("menu.Reset",false,false);
 
     // Define Camera Render Object (for view / scene browsing)
@@ -135,6 +136,11 @@ void Viewer::Run()
         if(menuFEA)
             mpMapDrawer->DrawMesh();
 
+        if(menuDebugMode)
+            mpTracker->bDebugMode = true;
+        else
+            mpTracker->bDebugMode = false;
+
         pangolin::FinishFrame();
 
         cv::Mat im = mpFrameDrawer->DrawFrame(menuFEA);
@@ -148,6 +154,7 @@ void Viewer::Run()
             menuShowPoints = true;
             menuLocalizationMode = false;
             menuFEA = false;
+            menuDebugMode = false;
             if(bLocalizationMode)
                 mpSystem->DeactivateLocalizationMode();
             bLocalizationMode = false;

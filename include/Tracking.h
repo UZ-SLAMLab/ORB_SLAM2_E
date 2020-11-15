@@ -136,6 +136,8 @@ public:
     float kpiPrecision = 0.0;
     float kpiRecall = 0.0;
 
+    bool bDebugMode = false;
+
     void Reset();
 
 protected:

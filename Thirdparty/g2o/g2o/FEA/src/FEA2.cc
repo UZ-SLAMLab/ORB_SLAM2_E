@@ -82,9 +82,9 @@ bool FEA2::Compute(int nMode) {
     GetMapPointCoordinates(nMode);
 
     if (LoadMPsIntoCloud(nMode)) {
-        cout << "           - MLS" << endl;
+        if (bDebugMode) cout << "           - MLS" << endl;
         if (MLS(nMode)) {
-            cout << "           - Tri mesh" << endl;
+            if (bDebugMode) cout << "           - Tri mesh" << endl;
             if(ComputeMesh(nMode)) {
                 tri2quad(nMode);
                 SetSecondLayer(nMode);
@@ -1314,7 +1314,7 @@ bool FEA2::MatrixAssembly(int nMode) {
     if (nMode == 1) {
         int nTotalNodes = vMPsXYZN_t.size() + vMPsXYZN_t2.size();
         Ksize = 3*nTotalNodes;
-        cout << "                - MatAssembly (hex, 24 DoF per el. Curr: " << quads_t.size() << " quads, " << nTotalNodes << " nodes, Ksize = " << Ksize << ")" << endl;
+        if (bDebugMode) cout << "                - MatAssembly (hex, 24 DoF per el. Curr: " << quads_t.size() << " quads, " << nTotalNodes << " nodes, Ksize = " << Ksize << ")" << endl;
 
         if (Ksize<=3)
             return false;
@@ -1371,7 +1371,7 @@ bool FEA2::MatrixAssembly(int nMode) {
     else if (nMode == 2) {
         int nTotalNodes = vMPsXYZN_ut.size() + vMPsXYZN_ut2.size();
         Kusize = 3*nTotalNodes;
-        cout << "                - MatAssembly (hex, 24 DoF per el. Curr: " << quads_u.size() << " quads, " << nTotalNodes << " nodes, Kusize = " << Kusize << ")" << endl;
+        if (bDebugMode) cout << "                - MatAssembly (hex, 24 DoF per el. Curr: " << quads_u.size() << " quads, " << nTotalNodes << " nodes, Kusize = " << Kusize << ")" << endl;
 
         if (Kusize<=3)
             return false;

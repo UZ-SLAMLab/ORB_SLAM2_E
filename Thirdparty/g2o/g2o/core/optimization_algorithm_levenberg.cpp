@@ -77,16 +77,12 @@ OptimizationAlgorithm::SolverResult OptimizationAlgorithmLevenberg::solve(int it
 
     double t=get_monotonic_time();
 
-    VertexSBAPointXYZ* v1_1;    //Debug
-    VertexSBAPointXYZ* v1_2;    //Debug
-
     if (bInFEA)
     {
         //vector<vector<float> > vPoints = GetPointCoordinates(pFEA2->vVertices);
         pFEA2->setbfea(true);
         _optimizer->computeActiveErrors();
         pFEA2->setbfea(false);
-        v1_1 = pFEA2->vVertices[5];      //Debug
     }
     else
         _optimizer->computeActiveErrors();
@@ -174,40 +170,19 @@ OptimizationAlgorithm::SolverResult OptimizationAlgorithmLevenberg::solve(int it
             sE = pFEA2->ComputeStrainEnergy();
             nsE = pFEA2->NormalizeStrainEnergy();
 
-            //cout << "sE and nsE = " << sE << "    " << nsE << endl;
-
-            //Debug
-            /*
-            if (pFEA2->bDebugMode)
-            {
-                v1_2 = pFEA2->vVertices[5];
-                Eigen::Matrix<double, 3, 1> p1_1 = v1_1->estimate();
-                Eigen::Matrix<double, 3, 1> p1_2 = v1_2->estimate();
-                cout << "----------------------------------" << endl;
-                cout << p1_1[0] << " - " << p1_2[0] << endl;
-                cout << p1_1[1] << " - " << p1_2[1] << endl;
-                cout << p1_1[2] << " - " << p1_2[2] << endl;
-                cout << "----------------------------------" << endl;
-            }
-            */
-
-
             float w_rE = 1.0;
             float w_sE = 5.0;
-            //fFactorFEA = nsE/currentChi;
             if (qmax==0)
             {
                 w_rE = 1.0;
                 w_sE = 2.0;
                 if (pFEA2->bDebugMode) cout << "             currentChi1 / sE / nsE / fFactorFEA = " << currentChi << " / " << sE << " / " << nsE << " / " << fFactorFEA << endl;
-                //currentChi += nsE/fFactorFEA;
                 currentChi += nsE;
                 if (pFEA2->bDebugMode) cout << "             currentChi2 = " << currentChi << endl;
             }
             else
-                cout << "             currentChi = " << currentChi << endl;
+                if (pFEA2->bDebugMode) cout << "             currentChi = " << currentChi << endl;
 
-            //nsE /= fFactorFEA;
             if (pFEA2->bDebugMode) cout << "             wOPT = tempChi = w_rE·rE + w_sE·sE = " << w_rE << "·" << tempChi << " + " << w_sE << "·" << nsE << " = " << (w_rE*tempChi + w_sE*nsE) << endl;
             tempChi = w_rE*tempChi + w_sE*nsE;
         }
@@ -216,7 +191,7 @@ OptimizationAlgorithm::SolverResult OptimizationAlgorithmLevenberg::solve(int it
         double scale = computeScale();
         scale += 1e-3; // make sure it's non-zero :)
         if (bInFEA) if (pFEA2->bDebugMode) cout << "             rho = (currentChi - tempChi)/scale = (" << currentChi << " - " << tempChi << ")/" << scale << " = " << rho/scale << endl;
-        rho /=  scale;
+        rho /= scale;
 
         if (rho>0 && g2o_isfinite(tempChi)) // last step was good
         {
