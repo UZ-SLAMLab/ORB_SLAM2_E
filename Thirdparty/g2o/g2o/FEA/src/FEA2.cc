@@ -294,7 +294,17 @@ bool FEA2::ComputeMesh(int nMode) {
         int nSurAng = 150;
         int nMinAng = 45;
         int nMaxAng = 90;
-        CalculateGP3Parameters(ptr_pc_t_mesh_1,&nInMu,&nSearchRad,&nMaxNeig,&nSurAng,&nMinAng,&nMaxAng);
+        //CalculateGP3Parameters(ptr_pc_t_mesh_1,&nInMu,&nSearchRad,&nMaxNeig,&nSurAng,&nMinAng,&nMaxAng);
+        //cout << "InMu = " << nInMu << endl;
+        //cout << "nSearchRad = " << nSearchRad << endl;
+        //cout << "nMaxNeig = " << nMaxNeig << endl;
+        //cout << "nSurAng = " << nSurAng << endl;
+        //cout << "nMinAng = " << nMinAng << endl;
+        //cout << "nMaxAng = " << nMaxAng << endl;
+
+        //nSearchRad = 30;
+        //nSurAng = 120;
+        //nMaxNeig = 1000000;
 
         // Greedy Projection
         static pcl::GreedyProjectionTriangulation<pcl::PointNormal> GreedyProj3;
@@ -371,7 +381,7 @@ bool FEA2::ComputeMesh(int nMode) {
         int nSurAng = 150;
         int nMinAng = 45;
         int nMaxAng = 90;
-        CalculateGP3Parameters(ptr_pc_u_mesh_1,&nInMu,&nSearchRad,&nMaxNeig,&nSurAng,&nMinAng,&nMaxAng);
+        //CalculateGP3Parameters(ptr_pc_u_mesh_1,&nInMu,&nSearchRad,&nMaxNeig,&nSurAng,&nMinAng,&nMaxAng);
 
         // Greedy Projection
         static pcl::GreedyProjectionTriangulation<pcl::PointNormal> GreedyProj3;

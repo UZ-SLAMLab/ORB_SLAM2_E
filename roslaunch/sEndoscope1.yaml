@@ -50,8 +50,8 @@ Output.StatsNLOpt: 1
 #--------------------------------------------------------------------------------------------
 
 # Attempt relocation with every frame
-RelocParam.bTestAllFrames: 0
-RelocParam.nPrecisionFrames: 3
+RelocParam.bTestAllFrames: 1
+RelocParam.nPrecisionFrames: 5
 RelocParam.bUseInverse: 0
 
 

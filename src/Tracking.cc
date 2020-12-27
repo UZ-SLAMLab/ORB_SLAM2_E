@@ -159,9 +159,6 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
             mDepthMapFactor = 1.0f/mDepthMapFactor;
     }
 
-
-    //bMap = LoadMap(vpKFs_Loaded,vpMPs_Loaded);
-
     nTestAllFrames = fSettings["RelocParam.bTestAllFrames"];
     if (nTestAllFrames==1) bTestAllFrames = true;
     nPrecisionFrames = fSettings["RelocParam.nPrecisionFrames"];
@@ -171,6 +168,7 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
     cout << "- Test all frames: " << bTestAllFrames << endl;
     cout << "- Frames evaluated for Precision score: " << nPrecisionFrames << endl;
     cout << "- Compute Inverse in Relocalization: " << bUseInverse << endl;
+    cout << endl;
 
     // Output text files for saving statistics of PnP and NonLinearOptimization
     // One pointer for Rigid Model and one pointer for Non-Rigid Model
@@ -401,36 +399,15 @@ void Tracking::Track()
                 }
                 else
                 {
-                    //if (mCurrentFrame.mnId<=mnLastRelocFrameId+2) cout << " Track() - Normal mode, not next to RelocFrame" << endl;
                     bOK = TrackWithMotionModel();
-                    //if (mCurrentFrame.mnId<=mnLastRelocFrameId+2) cout << "           TrackWithMotionModel() - bOK=" << bOK << endl;
                     mCurrentFrame.SourceKfId = 0;
                     if(mpLocalMapper->bDataToSave)
                         mpLocalMapper->SaveDataInFrame(&mCurrentFrame);
                     if(!bOK)
                     {
                         bOK = TrackReferenceKeyFrame();
-                        //if (mCurrentFrame.mnId<=mnLastRelocFrameId+2) cout << "           TrackReferenceKeyFrame - bOK=" << bOK << endl;
                     }
 
-                    /*
-                    if (mCurrentFrame.mnId<mnLastRelocFrameId+nPrecisionFrames && !bOK) {
-                        pStatsPR->AddValue(mnLastRelocFrameId);
-                        pStatsPR->AddValue(1);
-                        pStatsPR->AddValue(0);
-                        pStatsPR->NewLine();
-                        kpiFP++;
-                    }
-
-                    if (mCurrentFrame.mnId==mnLastRelocFrameId+nPrecisionFrames && bOK) {
-                        pStatsPR->AddValue(mnLastRelocFrameId);
-                        pStatsPR->AddValue(1);
-                        pStatsPR->AddValue(1); //Save TP and go back to state lost
-                        pStatsPR->NewLine();
-                        kpiTP++;
-                        if (bTestAllFrames) bOK = false;
-                    }
-                    */
                 }
             }
             else
@@ -567,12 +544,12 @@ void Tracking::Track()
             double kpiPr = 0.0;
             int kpiTPFP = kpiTP + kpiFP;
             if (kpiTPFP>0)
-                kpiPr = kpiTP / kpiTPFP;
+                kpiPr = (float)kpiTP / (float)kpiTPFP;
 
             double kpiRc = 0.0;
             int kpiTPFN = kpiTP + kpiFN;
             if (kpiTPFN>0)
-                kpiRc = kpiTP / kpiTPFN;
+                kpiRc = (float)kpiTP / (float)kpiTPFN;
 
             kpiTot++;
 
@@ -763,7 +740,7 @@ void Tracking::MonocularInitialization()
     else
     {
         // Try to initialize
-        if((int)mCurrentFrame.mvKeys.size()<=100)
+        if((int)mCurrentFrame.mvKeys.size()<=100)		//ORB-SLAM2 init
         {
             delete mpInitializer;
             mpInitializer = static_cast<Initializer*>(NULL);
@@ -944,7 +921,7 @@ void Tracking::CreateInitialMapMonocular()
     float medianDepth = pKFini->ComputeSceneMedianDepth(2);
     float invMedianDepth = 1.0f/medianDepth;
 
-    if(medianDepth<0 || pKFcur->TrackedMapPoints(1)<40)
+    if(medianDepth<0 || pKFcur->TrackedMapPoints(1)<40)		//ORB-SLAM2 init
     {
         cout << "Wrong initialization, reseting..." << endl;
         Reset();

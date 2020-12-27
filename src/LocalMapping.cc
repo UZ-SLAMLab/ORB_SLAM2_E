@@ -275,10 +275,6 @@ void LocalMapping::CreateNewMapPoints()
 
     const float ratioFactor = 1.5f*mpCurrentKeyFrame->mfScaleFactor;
 
-    // Record the reason for rejecting the pair of KPs
-    // vpKPsRejects.clear();
-    // viKPsRejectsReason.clear();
-
     int nnew=0;
 
     // Search matches with epipolar restriction and triangulate

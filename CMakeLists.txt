@@ -61,8 +61,6 @@ src/Sim3Solver.cc
 src/Initializer.cc
 src/Viewer.cc
 src/Statistics.cc
-#src/FEM.cc
-#Thirdparty/g2o/g2o/FEA/src/FEA.cc
 Thirdparty/g2o/g2o/FEA/src/FEA2.cc
 )
 
