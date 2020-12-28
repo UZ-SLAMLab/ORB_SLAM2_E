@@ -96,7 +96,7 @@ class FEA2
 public:	// FUNCTIONS
 
 	//Constructor & Destructor
-    FEA2(unsigned int input_nFrameId, unsigned int input_E, float input_nu, float input_h, float input_fg1, bool bSetDebug);
+    FEA2(unsigned int input_nFrameId, unsigned int input_E, float input_nu, float input_h, float input_fg1, int input_nElType, bool bSetDebug);
     ~FEA2();
 
     // Build mesh and compute K
@@ -125,9 +125,11 @@ public:	// FUNCTIONS
     // Duplicates the previously generated mesh at a distance, builds a 3D structure.
     void SetSecondLayer(int nMode);
 
-    vector<vector<float> > ComputeKei(vector<vector<float> > vfPts);
+    vector<vector<float> > ComputeKeiC3D8(vector<vector<float> > vfPts);
+    vector<vector<float> > ComputeKeiC3D6(vector<vector<float> > vfPts);
 
-    bool MatrixAssembly(int nMode);
+    bool MatrixAssemblyC3D8(int nMode);
+    bool MatrixAssemblyC3D6(int nMode);
 
     void ImposeDirichletEncastre_K(vector<vector<int> > vD, float Klarge);
     void ImposeDirichletEncastre_a(vector<vector<int> > vD, float Klarge);
@@ -280,8 +282,16 @@ public:	// VARIABLES
 
     bool it0 = false;
 
+
+    // Element Type
+    // nElType = 1    -> C3D8   Hexahedron
+    // nElType = 2    -> C3D6   Triangular prism
+    int nElType;
+
     // Debug mode
     bool bDebugMode = false;
+
+
 }; // class FEA2
 
 #endif // FEA2_H

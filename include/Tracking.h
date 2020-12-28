@@ -220,6 +220,7 @@ protected:
     int nPrecisionFrames = 2;
     int nUseInverse = 0;
     bool bUseInverse = false;
+    int nElType = 1;
 
     // Statistics pointers
     Statistics* pStatsReloc;

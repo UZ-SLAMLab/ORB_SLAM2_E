@@ -170,6 +170,16 @@ OptimizationAlgorithm::SolverResult OptimizationAlgorithmLevenberg::solve(int it
             sE = pFEA2->ComputeStrainEnergy();
             nsE = pFEA2->NormalizeStrainEnergy();
 
+            /*
+            for (unsigned int a=0; a<pFEA2->K.size(); a++){
+                for (unsigned int b=0; b<pFEA2->K[a].size(); b++){
+                    cout << pFEA2->vvf[a][b] << " ";
+                }
+                cout << endl;
+            }
+            cout << endl;
+            */
+
             float w_rE = 1.0;
             float w_sE = 5.0;
             if (qmax==0)

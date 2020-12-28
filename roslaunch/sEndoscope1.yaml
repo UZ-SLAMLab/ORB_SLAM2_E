@@ -51,8 +51,17 @@ Output.StatsNLOpt: 1
 
 # Attempt relocation with every frame
 RelocParam.bTestAllFrames: 1
+
+# Number of frames used for relocalization verification
 RelocParam.nPrecisionFrames: 5
+
+# Impose Dirichlet boundary conditions and expand deformation to rest of map (not UAT)
 RelocParam.bUseInverse: 0
+
+# Element type used in FEA
+# nElType = 1   C3D8 - Hexahedron
+# nElType = 2   C3D6 - Triangular Prism
+RelocParam.nElType: 2
 
 
 #--------------------------------------------------------------------------------------------

@@ -475,7 +475,7 @@ int Optimizer::PoseOptimization(Frame *pFrame)
     return nInitialCorrespondences-nBad;
 }
 
-int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer, bool bDebugMode)
+int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer, int nElType, bool bDebugMode)
 {
     // Simulation parameters & Model constants
     //bool bDebug = true;
@@ -484,7 +484,7 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
     //const float in_h = 0.5;
     //const float in_fg1 = 0.577350269;
 
-    FEA2 fea2(pFrame->mnId,3500,0.495,0.5,0.577350269,bDebugMode);
+    FEA2 fea2(pFrame->mnId,3500,0.495,0.5,0.577350269,nElType,bDebugMode);
     FEA2* pFEA2 = &fea2;
 
     // Configure g2o

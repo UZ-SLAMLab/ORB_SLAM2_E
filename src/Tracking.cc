@@ -162,12 +162,16 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
     nTestAllFrames = fSettings["RelocParam.bTestAllFrames"];
     if (nTestAllFrames==1) bTestAllFrames = true;
     nPrecisionFrames = fSettings["RelocParam.nPrecisionFrames"];
+    nElType = fSettings["RelocParam.nElType"];
+    if (nElType!=1 && nElType!=2) nElType = 1;
     nUseInverse = fSettings["RelocParam.bUseInverse"];
     if (nUseInverse==1) bUseInverse = true;
     cout << endl << "Reloc Settings: " << endl;
     cout << "- Test all frames: " << bTestAllFrames << endl;
     cout << "- Frames evaluated for Precision score: " << nPrecisionFrames << endl;
     cout << "- Compute Inverse in Relocalization: " << bUseInverse << endl;
+    if (nElType==1) cout << "- Element Type: C3D8 - Hexahedron" << endl;
+    if (nElType==2) cout << "- Element Type: C3D6 - Triangular Prism" << endl;
     cout << endl;
 
     // Output text files for saving statistics of PnP and NonLinearOptimization
@@ -1986,7 +1990,7 @@ bool Tracking::Relocalization()
 
                 // Restore camPose from Backup. Attempt NonRigid Relocation. Save Non-Rigid pose optimization
                 mTcwBackup.copyTo(mCurrentFrame.mTcw);
-                int nGoodNR = Optimizer::PoseOptimizationNR(&mCurrentFrame,mpMap,mpFrameDrawer,mpMapDrawer,bDebugMode);
+                int nGoodNR = Optimizer::PoseOptimizationNR(&mCurrentFrame,mpMap,mpFrameDrawer,mpMapDrawer,nElType,bDebugMode);
                 mCurrentFrame.mTcw.copyTo(mTcwNR);
                 SetRigidityFlag(false);
                 mCurrentFrame.mTcw.copyTo(mTcwBackup);
@@ -2047,7 +2051,7 @@ bool Tracking::Relocalization()
                         reloct3_R = (reloct32-reloct31)/relocf;
 
                         mTcwBackup.copyTo(mCurrentFrame.mTcw);
-                        nGoodNR = Optimizer::PoseOptimizationNR(&mCurrentFrame,mpMap,mpFrameDrawer,mpMapDrawer,bDebugMode);
+                        nGoodNR = Optimizer::PoseOptimizationNR(&mCurrentFrame,mpMap,mpFrameDrawer,mpMapDrawer,nElType,bDebugMode);
                         mCurrentFrame.mTcw.copyTo(mTcwNR);
                         SetRigidityFlag(false);
                         mCurrentFrame.mTcw.copyTo(mTcwBackup);
@@ -2109,7 +2113,7 @@ bool Tracking::Relocalization()
                                 reloct4_R = (reloct42-reloct41)/relocf;
 
                                 mTcwBackup.copyTo(mCurrentFrame.mTcw);
-                                nGoodNR = Optimizer::PoseOptimizationNR(&mCurrentFrame,mpMap,mpFrameDrawer,mpMapDrawer,bDebugMode);
+                                nGoodNR = Optimizer::PoseOptimizationNR(&mCurrentFrame,mpMap,mpFrameDrawer,mpMapDrawer,nElType,bDebugMode);
                                 mCurrentFrame.mTcw.copyTo(mTcwNR);
                                 SetRigidityFlag(false);
 
