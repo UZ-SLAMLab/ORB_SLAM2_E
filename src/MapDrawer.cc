@@ -80,7 +80,7 @@ void MapDrawer::DrawMapPoints()
     glEnd();
 }
 
-void MapDrawer::DrawMesh()
+void MapDrawer::DrawMesh(int nElType)
 {
     const vector<vector<MapPoint*> > vpMPs = mpMap->vpMPs2Draw;
     if (vpMPs.empty())
@@ -93,49 +93,56 @@ void MapDrawer::DrawMesh()
 
     for(unsigned int i=0; i<vpMPs.size(); i++)
     {
-        cv::Mat pos0 = vpMPs[i][0]->GetWorldPos();
-        cv::Mat pos1 = vpMPs[i][1]->GetWorldPos();
-        cv::Mat pos2 = vpMPs[i][2]->GetWorldPos();
+        MapPoint* pMP0 = vpMPs[i][0];
+        MapPoint* pMP1 = vpMPs[i][1];
+        MapPoint* pMP2 = vpMPs[i][2];
 
-        vector<float> v0, v1, v2, m01, m02, m12, m012;
-        v0 = {pos0.at<float>(0),pos0.at<float>(1),pos0.at<float>(2)};
-        v1 = {pos1.at<float>(0),pos1.at<float>(1),pos1.at<float>(2)};
-        v2 = {pos2.at<float>(0),pos2.at<float>(1),pos2.at<float>(2)};
-        m01 = {(v0[0]+v1[0])/2,(v0[1]+v1[1])/2,(v0[2]+v1[2])/2};
-        m02 = {(v0[0]+v2[0])/2,(v0[1]+v2[1])/2,(v0[2]+v2[2])/2};
-        m12 = {(v1[0]+v2[0])/2,(v1[1]+v2[1])/2,(v1[2]+v2[2])/2};
-        m012 = {(v0[0]+v1[0]+v2[0])/3,(v0[1]+v1[1]+v2[1])/3,(v0[2]+v1[2]+v2[2])/3};
+        if (pMP0 && pMP1 && pMP2) {
+            cv::Mat pos0 = pMP0->GetWorldPos();
+            cv::Mat pos1 = pMP1->GetWorldPos();
+            cv::Mat pos2 = pMP2->GetWorldPos();
 
-        glVertex3f(v0[0],v0[1],v0[2]);
-        glVertex3f(v1[0],v1[1],v1[2]);
-        glVertex3f(v0[0],v0[1],v0[2]);
-        glVertex3f(v2[0],v2[1],v2[2]);
-        glVertex3f(v1[0],v1[1],v1[2]);
-        glVertex3f(v2[0],v2[1],v2[2]);
+            vector<float> v0, v1, v2, m01, m02, m12, m012;
+            v0 = {pos0.at<float>(0),pos0.at<float>(1),pos0.at<float>(2)};
+            v1 = {pos1.at<float>(0),pos1.at<float>(1),pos1.at<float>(2)};
+            v2 = {pos2.at<float>(0),pos2.at<float>(1),pos2.at<float>(2)};
 
-        /*
-        glVertex3f(v0[0],v0[1],v0[2]);
-        glVertex3f(m01[0],m01[1],m01[2]);
-        glVertex3f(m01[0],m01[1],m01[2]);
-        glVertex3f(v1[0],v1[1],v1[2]);
+            glVertex3f(v0[0],v0[1],v0[2]);
+            glVertex3f(v1[0],v1[1],v1[2]);
+            glVertex3f(v0[0],v0[1],v0[2]);
+            glVertex3f(v2[0],v2[1],v2[2]);
+            glVertex3f(v1[0],v1[1],v1[2]);
+            glVertex3f(v2[0],v2[1],v2[2]);
 
-        glVertex3f(v0[0],v0[1],v0[2]);
-        glVertex3f(m02[0],m02[1],m02[2]);
-        glVertex3f(m02[0],m02[1],m02[2]);
-        glVertex3f(v2[0],v2[1],v2[2]);
+            if (nElType==1){
+                m01 = {(v0[0]+v1[0])/2,(v0[1]+v1[1])/2,(v0[2]+v1[2])/2};
+                m02 = {(v0[0]+v2[0])/2,(v0[1]+v2[1])/2,(v0[2]+v2[2])/2};
+                m12 = {(v1[0]+v2[0])/2,(v1[1]+v2[1])/2,(v1[2]+v2[2])/2};
+                m012 = {(v0[0]+v1[0]+v2[0])/3,(v0[1]+v1[1]+v2[1])/3,(v0[2]+v1[2]+v2[2])/3};
 
-        glVertex3f(v1[0],v1[1],v1[2]);
-        glVertex3f(m12[0],m12[1],m12[2]);
-        glVertex3f(m12[0],m12[1],m12[2]);
-        glVertex3f(v2[0],v2[1],v2[2]);
+                glVertex3f(v0[0],v0[1],v0[2]);
+                glVertex3f(m01[0],m01[1],m01[2]);
+                glVertex3f(m01[0],m01[1],m01[2]);
+                glVertex3f(v1[0],v1[1],v1[2]);
 
-        glVertex3f(m01[0],m01[1],m01[2]);
-        glVertex3f(m012[0],m012[1],m012[2]);
-        glVertex3f(m02[0],m02[1],m02[2]);
-        glVertex3f(m012[0],m012[1],m012[2]);
-        glVertex3f(m12[0],m12[1],m12[2]);
-        glVertex3f(m012[0],m012[1],m012[2]);
-        */
+                glVertex3f(v0[0],v0[1],v0[2]);
+                glVertex3f(m02[0],m02[1],m02[2]);
+                glVertex3f(m02[0],m02[1],m02[2]);
+                glVertex3f(v2[0],v2[1],v2[2]);
+
+                glVertex3f(v1[0],v1[1],v1[2]);
+                glVertex3f(m12[0],m12[1],m12[2]);
+                glVertex3f(m12[0],m12[1],m12[2]);
+                glVertex3f(v2[0],v2[1],v2[2]);
+
+                glVertex3f(m01[0],m01[1],m01[2]);
+                glVertex3f(m012[0],m012[1],m012[2]);
+                glVertex3f(m02[0],m02[1],m02[2]);
+                glVertex3f(m012[0],m012[1],m012[2]);
+                glVertex3f(m12[0],m12[1],m12[2]);
+                glVertex3f(m012[0],m012[1],m012[2]);
+            }
+        }
     }
 
     glEnd();

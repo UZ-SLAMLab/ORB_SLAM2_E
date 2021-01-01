@@ -49,6 +49,8 @@ Viewer::Viewer(System* pSystem, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer
     mViewpointY = fSettings["Viewer.ViewpointY"];
     mViewpointZ = fSettings["Viewer.ViewpointZ"];
     mViewpointF = fSettings["Viewer.ViewpointF"];
+
+    nElType = fSettings["RelocParam.nElType"];
 }
 
 void Viewer::Run()
@@ -134,7 +136,7 @@ void Viewer::Run()
         if(menuShowPoints)
             mpMapDrawer->DrawMapPoints();
         if(menuFEA)
-            mpMapDrawer->DrawMesh();
+            mpMapDrawer->DrawMesh(nElType);
 
         if(menuDebugMode)
             mpTracker->bDebugMode = true;

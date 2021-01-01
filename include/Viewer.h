@@ -70,6 +70,7 @@ private:
     float mImageWidth, mImageHeight;
 
     float mViewpointX, mViewpointY, mViewpointZ, mViewpointF;
+    int nElType = 0;
 
     bool CheckFinish();
     void SetFinish();

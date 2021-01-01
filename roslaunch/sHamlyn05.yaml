@@ -6,15 +6,15 @@
 
 # Camera calibration and distortion parameters (OpenCV) 
 
-Camera.fx: 381.914307
-Camera.fy: 383.797882
-Camera.cx: 168.108963
-Camera.cy: 126.979446
+Camera.fx: 755.312744
+Camera.fy: 420.477722
+Camera.cx: 327.875000
+Camera.cy: 165.484406
 
-Camera.k1: -0.333236
-Camera.k2: 0.925076
-Camera.p1: 0.003847
-Camera.p2: 0.000916
+Camera.k1: -0.186853
+Camera.k2: 0.122769
+Camera.p1: -0.010146
+Camera.p2: -0.003869
 Camera.k3: 0.0
 
 # Camera frames per second 
@@ -50,10 +50,18 @@ Output.StatsNLOpt: 1
 #--------------------------------------------------------------------------------------------
 
 # Attempt relocation with every frame
-RelocParam.bTestAllFrames: 0
-RelocParam.nPrecisionFrames: 3
+RelocParam.bTestAllFrames: 1
 
+# Number of frames used for relocalization verification
+RelocParam.nPrecisionFrames: 5
 
+# Impose Dirichlet boundary conditions and expand deformation to rest of map (not UAT)
+RelocParam.bUseInverse: 0
+
+# Element type used in FEA
+# nElType = 1   C3D8 - Hexahedron
+# nElType = 2   C3D6 - Triangular Prism
+RelocParam.nElType: 2
 
 #--------------------------------------------------------------------------------------------
 # ORB Parameters

@@ -229,31 +229,27 @@ cv::Mat FrameDrawer::DrawFrame(bool bDrawMesh)
         }
         */
 
-        //cout << "predraw frame" << endl;
-        if (vpMPs2Draw.size() > 0 && bDrawMesh==true)
-        {
-            for(unsigned int i=0; i<vpMPs2Draw.size(); i++)
-            {
-                if (!vpMPs2Draw[i][0] || !vpMPs2Draw[i][1] || !vpMPs2Draw[i][2])
-                    continue;
+        
+        
+        if (vpMPs2Draw.size() > 0 && bDrawMesh==true && mRcw.type()==5 && mtcw.type()==5){
+            for(unsigned int i=0; i<vpMPs2Draw.size(); i++){
 
-                //cout << "0" << endl;
+                MapPoint* pMP0 = vpMPs2Draw[i][0];
+                MapPoint* pMP1 = vpMPs2Draw[i][1];
+                MapPoint* pMP2 = vpMPs2Draw[i][2];
 
-                cv::Point2f v0 = DistortMapPoint(vpMPs2Draw[i][0]);
-                cv::Point2f v1 = DistortMapPoint(vpMPs2Draw[i][1]);
-                cv::Point2f v2 = DistortMapPoint(vpMPs2Draw[i][2]);
+                if (pMP0 && pMP1 && pMP2) {
+                    cv::Point2f v0 = DistortMapPoint(pMP0);
+                    cv::Point2f v1 = DistortMapPoint(pMP1);
+                    cv::Point2f v2 = DistortMapPoint(pMP2);
 
-                //cout << "1" << endl;
-
-                int ncolor = 220;
-                cv::line(im,v0,v1,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
-                cv::line(im,v0,v2,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
-                cv::line(im,v1,v2,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
-
-                //cout << "2" << endl;
+                    int ncolor = 220;
+                    cv::line(im,v0,v1,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
+                    cv::line(im,v0,v2,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
+                    cv::line(im,v1,v2,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
+                }
             }
         }
-        //cout << "postdraw frame" << endl;
     }
 
     pStats1->OpenFile(0);
@@ -403,6 +399,8 @@ cv::Point2f FrameDrawer::DistortMapPoint(MapPoint* pMP)
 
     // 3D in absolute coordinates
     cv::Mat P = pMP->GetWorldPos();
+
+    //cout << "Mat Types = " << mRcw.type() << "  " << P.type() << "  " << mtcw.type() << endl;
     // 3D in camera coordinates
     const cv::Mat Pc = mRcw*P+mtcw;
     const float PcX = Pc.at<float>(0);
