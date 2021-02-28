@@ -102,9 +102,9 @@ bool FEA2::Compute(int nMode) {
                     MatrixAssemblyC3D6(nMode);
 
                 if (nMode == 1)
-                    ImposeDirichletEncastre_K(vvDir_t,100000000.0);
+                    ImposeDirichletEncastre_K(nMode,vvDir_t,100000000.0);
                 else if (nMode == 2)
-                    ImposeDirichletEncastre_K(vvDir_u,100000000.0);
+                    ImposeDirichletEncastre_K(nMode,vvDir_u,100000000.0);
 
 
                 if (nMode == 2){
@@ -1236,22 +1236,51 @@ void FEA2::SetSecondLayer(int nMode) {
 
 
 void FEA2::Set_u0(vector<MapPoint*> vpMPs, int nMode) {
+    /*
+    cout << "Set_u0" << endl;
+    cout << "nMode=" << nMode << endl;
     if (nMode == 1 ) {
+        cout << "1" << endl;
+        u0.clear();
+        vector<vector<float> > vt1 = vector_resize_cols(vMPsXYZN_t,1);
+        vector<vector<float> > vt2 = vector_resize_cols(vMPsXYZN_t2,1);
+        u0.resize(vt1.size()+vt2.size());
+        cout << "u0=" << u0.size() << "  vt1=" << vt1.size() << "  vt2=" << vt2.size() << endl;
+        for (unsigned int i=0; i<vt1.size(); i++)
+            u0[i] = vt1[i][0];
+        for (unsigned int i=0; i<vt2.size(); i++)
+            u0[i] = vt2[i][0];
+    }
+    else if (nMode == 2) {
+        cout << "2" << endl;
+        u0u.clear();
+        for (unsigned int i=0; i<vMPsXYZN_ut.size(); i++)
+            for (unsigned int j=0; j<vMPsXYZN_ut[i]; j++)
+                u0u.push_back(vMPsXYZN_ut[i][j]);
+        for (unsigned int i=0; i<vMPsXYZN_ut2.size(); i++)
+            for (unsigned int j=0; j<vMPsXYZN_ut2[i]; j++)
+                u0u.push_back(vMPsXYZN_ut2[i][j]);
+    }
+    */
+
+
+
+    if (nMode == 1) {
         u0.clear();
         for (unsigned int i=0; i<vMPsXYZN_t.size(); i++)
-            for (unsigned int j=0; j<3; j++)
+            for (unsigned int j=0; j<vMPsXYZN_t[i].size(); j++)
                 u0.push_back(vMPsXYZN_t[i][j]);
         for (unsigned int i=0; i<vMPsXYZN_t2.size(); i++)
-            for (unsigned int j=0; j<3; j++)
+            for (unsigned int j=0; j<vMPsXYZN_t2[i].size(); j++)
                 u0.push_back(vMPsXYZN_t2[i][j]);
     }
     else if (nMode == 2) {
         u0u.clear();
         for (unsigned int i=0; i<vMPsXYZN_ut.size(); i++)
-            for (unsigned int j=0; j<3; j++)
+            for (unsigned int j=0; j<vMPsXYZN_ut[i].size(); j++)
                 u0u.push_back(vMPsXYZN_ut[i][j]);
         for (unsigned int i=0; i<vMPsXYZN_ut2.size(); i++)
-            for (unsigned int j=0; j<3; j++)
+            for (unsigned int j=0; j<vMPsXYZN_ut2[i].size(); j++)
                 u0u.push_back(vMPsXYZN_ut2[i][j]);
     }
 }
@@ -1442,6 +1471,7 @@ bool FEA2::MatrixAssemblyC3D8(int nMode) {
                 for (unsigned int nj=0; nj<nodes.size(); nj++){
                     for (unsigned int m=0; m<3; m++){
                         for (unsigned int n=0; n<3; n++){
+                            if ( (mn[ni]+m)>=Ksize || (mn[nj]+n)>=Ksize )   continue;
                             K[mn[ni]+m][mn[nj]+n] += Kei[3*ni+m][3*nj+n];
                         }
                     }
@@ -1502,6 +1532,7 @@ bool FEA2::MatrixAssemblyC3D8(int nMode) {
                 for (unsigned int nj=0; nj<nodes.size(); nj++){
                     for (unsigned int m=0; m<3; m++){
                         for (unsigned int n=0; n<3; n++){
+                            if ( (mn[ni]+m)>=Ksize || (mn[nj]+n)>=Ksize )   continue;
                             Ku[mn[ni]+m][mn[nj]+n] += Kei[3*ni+m][3*nj+n];
                         }
                     }
@@ -1527,6 +1558,8 @@ bool FEA2::MatrixAssemblyC3D6(int nMode) {
 
         K = vector<vector<float> >(Ksize,vector<float>(Ksize,0.0));
 
+        //cout << " 0 " << endl;
+
         for (unsigned int i=0; i<triangles_t.size(); i++) {
             vector<int> nodes;
             nodes.push_back(triangles_t[i][0]);
@@ -1535,6 +1568,8 @@ bool FEA2::MatrixAssemblyC3D6(int nMode) {
             nodes.push_back(triangles_t[i][0] + vMPsXYZN_t.size());
             nodes.push_back(triangles_t[i][1] + vMPsXYZN_t.size());
             nodes.push_back(triangles_t[i][2] + vMPsXYZN_t.size());
+
+            //cout << " 1 " << endl;
 
             vector<vector<float> > vfPts;
             for (unsigned int j=0; j<3; j++) {
@@ -1545,6 +1580,8 @@ bool FEA2::MatrixAssemblyC3D6(int nMode) {
                 vfPts.push_back(vfPtsi);
             }
 
+            //cout << " 2 " << endl;
+
             for (unsigned int j=0; j<3; j++) {
                 vector<float> vfPtsi;
                 vfPtsi.push_back(vMPsXYZN_t2[nodes[j]][0]);
@@ -1553,29 +1590,36 @@ bool FEA2::MatrixAssemblyC3D6(int nMode) {
                 vfPts.push_back(vfPtsi);
             }
 
+            //cout << " 3 " << endl;
+
             vector<vector<float> > Kei = ComputeKeiC3D6(vfPts);
+
+            //cout << " 4 " << endl;
 
             vector<int> mn;
             for (unsigned j=0; j<nodes.size(); j++) {
                 mn.push_back(nodes[j]*3);
             }
 
+            //cout << "pre-k" << endl;
             for (unsigned int ni=0; ni<nodes.size(); ni++){
                 for (unsigned int nj=0; nj<nodes.size(); nj++){
                     for (unsigned int m=0; m<3; m++){
                         for (unsigned int n=0; n<3; n++){
+                            if ( (mn[ni]+m)>=Ksize || (mn[nj]+n)>=Ksize )   continue;
                             K[mn[ni]+m][mn[nj]+n] += Kei[3*ni+m][3*nj+n];
                         }
                     }
                 }
             }
+            //cout << "6" << endl;
         }
         return true;
     }
     else if (nMode == 2) {
         int nTotalNodes = vMPsXYZN_ut.size() + vMPsXYZN_ut2.size();
         Kusize = 3*nTotalNodes;
-        if (bDebugMode) cout << "                - MatAssembly (tri, 18 DoF per el. Curr: " << triangles_u.size() << " triangles, " << nTotalNodes << " nodes, Ksize = " << Kusize << ")" << endl;
+        if (bDebugMode) cout << "                - MatAssembly (tri, 18 DoF per el. Curr: " << triangles_u.size() << " triangles, " << nTotalNodes << " nodes, Kusize = " << Kusize << ")" << endl;
 
         if (Kusize<=3)
             return false;
@@ -1622,6 +1666,7 @@ bool FEA2::MatrixAssemblyC3D6(int nMode) {
                 for (unsigned int nj=0; nj<nodes.size(); nj++){
                     for (unsigned int m=0; m<3; m++){
                         for (unsigned int n=0; n<3; n++){
+                            if ( (mn[ni]+m)>=Ksize || (mn[nj]+n)>=Ksize )   continue;
                             Ku[mn[ni]+m][mn[nj]+n] += Kei[3*ni+m][3*nj+n];
                         }
                     }
@@ -1637,19 +1682,27 @@ bool FEA2::MatrixAssemblyC3D6(int nMode) {
 
 
 
-void FEA2::ImposeDirichletEncastre_K(vector<vector<int> > vD, float Klarge){
+void FEA2::ImposeDirichletEncastre_K(int nMode, vector<vector<int> > vD, float Klarge){
     for (unsigned int i=0; i<vD.size(); i++){
         int mp0 = 3*(vD[i][0] - 1);
         int mp1 = mp0 + 1;
         int mp2 = mp0 + 2;
 
+        if (nMode==1){
+            K[mp0][mp0] = Klarge;
+            K[mp1][mp1] = Klarge;
+            K[mp2][mp2] = Klarge;
+        }
+        else if (nMode==2){
+            Ku[mp0][mp0] = Klarge;
+            Ku[mp1][mp1] = Klarge;
+            Ku[mp2][mp2] = Klarge;
+        }
+        /*
         K[mp0][mp0] = Klarge;
         K[mp1][mp1] = Klarge;
         K[mp2][mp2] = Klarge;
-
-        //a[mp0] = 1/Klarge;
-        //a[mp1] = 1/Klarge;
-        //a[mp2] = 1/Klarge;
+        */
     }
 }
 
@@ -1896,18 +1949,41 @@ float FEA2::NormalizeStrainEnergy(){
 
 
 void FEA2::UpdateForces(){
-    cout << "vvf  " << vvf.size() << endl
-         << "     " << vMPsXYZN_t.size() << "  " << vMPsXYZN_t2.size() << endl
-         << "     " << vMPsXYZN_ut.size() << "  " << vMPsXYZN_ut2.size() << endl
-         << "     " << vpMPs_t.size() << "  " << vpMPs_ut.size() << endl;
+    //cout << "vvf  " << vvf.size() << endl
+    //     << "     " << vMPsXYZN_t.size() << "  " << vMPsXYZN_t2.size() << endl
+    //     << "     " << vMPsXYZN_ut.size() << "  " << vMPsXYZN_ut2.size() << endl
+    //     << "     " << vpMPs_t.size() << "  " << vpMPs_ut.size() << endl;
 
-
-
-
+    unsigned int nadd = 3*(vMPsXYZN_u.size() + vMPsXYZN_u2.size() - vMPsXYZN_t.size() - vMPsXYZN_t2.size());
+    for (unsigned int i=0; i<nadd; i++){
+        vector<float> vfi = vector<float>(1,0.0);
+        vvf.push_back(vfi);
+    }
 }
 
 
+void FEA2::ComputeNewDisplacement(){
+    //cout << "vva2  " << vva2.size() << endl;
 
+    vva2 = MultiplyMatricesEigen(Ku,vvf);
+    vva2 = vector_resize_cols(vva2,3);
+}
+
+
+vector<vector<float> > FEA2::vector_resize_cols(vector<vector<float> > v1, unsigned int n){
+    vector<vector<float> > v2;
+    vector<float> v2i;
+    for (unsigned int i=0; i<v1.size(); i++){
+        for (unsigned int j=0; j<v1[i].size(); j++){
+            v2i.push_back(v1[i][j]);
+            if (v2i.size() == n){
+                v2.push_back(v2i);
+                v2i.clear();
+            }
+        }
+    }
+    return v2;
+}
 
 
 

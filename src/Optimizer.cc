@@ -826,13 +826,6 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
     cv::Mat pose = Converter::toCvMat(SE3quat_recov);
     pFrame->SetPose(pose);
 
-    //Build second Mesh, get possitions of all MPs present within frame limits.
-    if(fea2.vpMPs_ut.size() > 1.5*fea2.vpMPs_t.size()){
-        if(fea2.Compute(2)){
-            cout << "        NLO- K2 computed" << endl;
-        }
-    }
-
     // Recover optimized MP positions
     for (unsigned int i=0; i<vnMobileVertices.size(); i++){
         g2o::VertexSBAPointXYZ* vSBA_recov = static_cast<g2o::VertexSBAPointXYZ*>(optimizer.vertex(vnMobileVertices[i]));
@@ -845,6 +838,23 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
         //cout << "             " << m1_0.at<float>(1) << "  " << m1_1.at<float>(1) << endl;
         //cout << "             " << m1_0.at<float>(2) << "  " << m1_1.at<float>(2) << endl;
     }
+    cout << "        NLO- Displacements 1 Applied" << endl;
+
+    //Build second Mesh, get possitions of all MPs present within frame limits.
+    if(fea2.vpMPs_ut.size() > 1.5*fea2.vpMPs_t.size()){
+        if(fea2.Compute(2)){
+            cout << "        NLO- K2 computed" << endl;
+            fea2.UpdateForces();
+            fea2.ComputeNewDisplacement();
+            for (unsigned int i=fea2.vpMPs_t.size(); i<fea2.vpMPs_ut.size(); i++){
+                cv::Mat mu1_1(3,1,CV_32F);
+                for(int j=0;j<3;j++)
+                    mu1_1.at<float>(j)=fea2.vva2[i][j];
+                vpMapPoints[i]->SetWorldPos(mu1_1);
+            }
+        }
+    }
+    cout << "        NLO- Displacements 2 Applied" << endl;
 
     cout << "        NLO- Completed" << endl;
     return nInitialCorrespondences-nBad;

@@ -6,15 +6,15 @@
 
 # Camera calibration and distortion parameters (OpenCV) 
 
-Camera.fx: 381.670013
-Camera.fy: 382.582397
-Camera.cx: 129.929291
-Camera.cy: 120.092186
+Camera.fx: 755.312744
+Camera.fy: 420.477722
+Camera.cx: 327.875000
+Camera.cy: 165.484406
 
-Camera.k1: -0.329342
-Camera.k2: 0.699034
-Camera.p1: 0.004927
-Camera.p2: 0.008194
+Camera.k1: -0.186853
+Camera.k2: 0.122769
+Camera.p1: -0.010146
+Camera.p2: -0.003869
 Camera.k3: 0.0
 
 # Camera frames per second 
@@ -62,6 +62,8 @@ RelocParam.bUseInverse: 0
 # nElType = 1   C3D8 - Hexahedron
 # nElType = 2   C3D6 - Triangular Prism
 RelocParam.nElType: 2
+
+
 
 #--------------------------------------------------------------------------------------------
 # ORB Parameters

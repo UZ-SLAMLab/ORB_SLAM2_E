@@ -131,7 +131,7 @@ public:	// FUNCTIONS
     bool MatrixAssemblyC3D8(int nMode);
     bool MatrixAssemblyC3D6(int nMode);
 
-    void ImposeDirichletEncastre_K(vector<vector<int> > vD, float Klarge);
+    void ImposeDirichletEncastre_K(int nMode,vector<vector<int> > vD, float Klarge);
     void ImposeDirichletEncastre_a(vector<vector<int> > vD, float Klarge);
 
     vector<vector<float> > InvertMatrixEigen(vector<vector<float> > m1);
@@ -140,6 +140,7 @@ public:	// FUNCTIONS
     void Set_u0(vector<MapPoint*> vpMPs, int nMode);
     void Set_uf(vector<vector<float> > vPoints);
     void ComputeDisplacement();
+    void ComputeNewDisplacement();
 
     void ComputeForces();
 
@@ -149,6 +150,8 @@ public:	// FUNCTIONS
     float GetNormalizedStrainEnergy();
 
     void UpdateForces();
+
+    vector<vector<float> > vector_resize_cols(vector<vector<float> > v1, unsigned int n);
 
     void setbfea(bool bSet);
     void setbfea2(bool bSet);
@@ -261,6 +264,7 @@ public:	// VARIABLES
     vector<float> u0u;  // Starting position of mappoints
     vector<float> uf;  // New position after being modified by the optimization
     vector<vector<float> > vva;
+    vector<vector<float> > vva2;
 
     // Forces
     vector<vector<float> > vvf;

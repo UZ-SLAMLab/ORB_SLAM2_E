@@ -6,19 +6,19 @@
 
 # Camera calibration and distortion parameters (OpenCV) 
 
-Camera.fx: 381.670013
-Camera.fy: 382.582397
-Camera.cx: 129.929291
-Camera.cy: 120.092186
+Camera.fx: 729.2316
+Camera.fy: 730.1585
+Camera.cx: 736.2043
+Camera.cy: 542.4282
 
-Camera.k1: -0.329342
-Camera.k2: 0.699034
-Camera.p1: 0.004927
-Camera.p2: 0.008194
+Camera.k1: -0.1264694
+Camera.k2: -0.006895169
+Camera.p1: 0.001731781
+Camera.p2: -0.00007914314
 Camera.k3: 0.0
 
 # Camera frames per second 
-Camera.fps: 30.0
+Camera.fps: 40.0
 
 # Color order of the images (0: BGR, 1: RGB. It is ignored if images are grayscale)
 Camera.RGB: 1
@@ -62,6 +62,7 @@ RelocParam.bUseInverse: 0
 # nElType = 1   C3D8 - Hexahedron
 # nElType = 2   C3D6 - Triangular Prism
 RelocParam.nElType: 2
+
 
 #--------------------------------------------------------------------------------------------
 # ORB Parameters
