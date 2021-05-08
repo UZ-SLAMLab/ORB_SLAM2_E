@@ -806,9 +806,12 @@ void ORBextractor::ComputeKeyPointsOctTree(vector<vector<KeyPoint> >& allKeypoin
                     maxX = maxBorderX;
 
                 vector<cv::KeyPoint> vKeysCell;
-                FAST(mvImagePyramid[level].rowRange(iniY,maxY).colRange(iniX,maxX),
-                     vKeysCell,iniThFAST,true);
+                
+                FAST(mvImagePyramid[level].rowRange(iniY,maxY).colRange(iniX,maxX),vKeysCell,iniThFAST,true);
 
+                //Ptr<AKAZE> akaze = AKAZE::create();
+                //akaze->detect(mvImagePyramid[level].rowRange(iniY,maxY).colRange(iniX,maxX),vKeysCell,noArray());
+                
                 // SURFmod
                 //SURF surf(30,4,2);
                 //sift(src, src, keypoints, descriptors, false);

@@ -841,6 +841,7 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
     cout << "        NLO- Displacements 1 Applied" << endl;
 
     //Build second Mesh, get possitions of all MPs present within frame limits.
+    /*
     if(fea2.vpMPs_ut.size() > 1.5*fea2.vpMPs_t.size()){
         if(fea2.Compute(2)){
             cout << "        NLO- K2 computed" << endl;
@@ -853,8 +854,9 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
                 vpMapPoints[i]->SetWorldPos(mu1_1);
             }
         }
+        cout << "        NLO- Displacements 2 Applied" << endl;
     }
-    cout << "        NLO- Displacements 2 Applied" << endl;
+    */
 
     cout << "        NLO- Completed" << endl;
     return nInitialCorrespondences-nBad;

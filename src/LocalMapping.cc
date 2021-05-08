@@ -430,7 +430,7 @@ void LocalMapping::CreateNewMapPoints()
                 float v1 = fy1*y1*invz1+cy1;
                 float errX1 = u1 - kp1.pt.x;
                 float errY1 = v1 - kp1.pt.y;
-                if((errX1*errX1+errY1*errY1)>0.5991*sigmaSquare1)
+                if((errX1*errX1+errY1*errY1)>5.991*sigmaSquare1)
                 {
                     nRepErrorRejects++;
                     continue;
@@ -462,7 +462,7 @@ void LocalMapping::CreateNewMapPoints()
                 float v2 = fy2*y2*invz2+cy2;
                 float errX2 = u2 - kp2.pt.x;
                 float errY2 = v2 - kp2.pt.y;
-                if((errX2*errX2+errY2*errY2)>0.5991*sigmaSquare2)
+                if((errX2*errX2+errY2*errY2)>5.991*sigmaSquare2)
                     continue;
             }
             else
