@@ -427,8 +427,7 @@ Mat FrameDrawer::SetTransparentColor(Mat &img, vector<vector<Point> > &roi, doub
     Mat layer = Mat::zeros(img.size(), CV_8UC3);
 
     for (unsigned int i=0; i<roi.size(); i++){
-        float colorit = vpMPs2DrawWgt[i];
-        Scalar colori = SetColor(colorit);
+        Scalar colori = SetColor(vpMPs2DrawWgt[i]);
 
         vector<vector<Point> > roi1;
         roi1.push_back(roi[i]);
