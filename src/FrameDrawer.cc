@@ -24,6 +24,9 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
+
 #include<mutex>
 
 namespace ORB_SLAM2
@@ -42,6 +45,8 @@ FrameDrawer::FrameDrawer(Map* pMap):mpMap(pMap)
       pStats1->CloseFile();
 
 }
+
+
 
 cv::Mat FrameDrawer::DrawFrame(bool bDrawMesh)
 {
@@ -128,7 +133,6 @@ cv::Mat FrameDrawer::DrawFrame(bool bDrawMesh)
     {
         mnTracked=0;
         mnTrackedVO=0;
-        // const float r = 5;
         for(int i=0;i<N;i++)
         {
             if (vbFullMap[i])
@@ -186,69 +190,37 @@ cv::Mat FrameDrawer::DrawFrame(bool bDrawMesh)
                     nNoSimilar++;
                     nMPsInFrame++;
                 }
-
-                /*else
-                {
-                    cv::Point2f p2f_mp = vMap[i];
-                    cv::circle(im,p2f_mp,2,cv::Scalar(255,255,255),-1);
-                    nMPsInFrame++;
-                }*/
             }
         }
-
-        /*
-        if (vpKPs2Draw.size() > 0);
-        {
-            for(unsigned int i=0; i<vpKPs2Draw.size(); i++)
-            {
-                cv::Point2f v0 = vpKPs2Draw[i][0]->pt;
-                cv::Point2f v1 = vpKPs2Draw[i][1]->pt;
-                cv::Point2f v2 = vpKPs2Draw[i][2]->pt;
-
-                cv::Point2f m01, m02, m12, m012;
-                m01.x = (v0.x+v1.x)/2;  m01.y = (v0.y+v1.y)/2;
-                m02.x = (v0.x+v2.x)/2;  m02.y = (v0.y+v2.y)/2;
-                m12.x = (v1.x+v2.x)/2;  m12.y = (v1.y+v2.y)/2;
-                m012.x = (v0.x+v1.x+v2.x)/3;    m012.y = (v0.y+v1.y+v2.y)/3;
-
-                int ncolor = 220;
-                cv::line(im,v0,v1,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
-                cv::line(im,v0,v2,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
-                cv::line(im,v1,v2,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
-
-                cv::line(im,v0,m01,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
-                cv::line(im,m01,v1,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
-                cv::line(im,v1,m12,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
-                cv::line(im,m12,v2,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
-                cv::line(im,v2,m02,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
-                cv::line(im,m02,v0,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
-                cv::line(im,m012,m01,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
-                cv::line(im,m012,m02,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
-                cv::line(im,m012,m12,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
-            }
-        }
-        */
-
-        
         
         if (vpMPs2Draw.size() > 0 && bDrawMesh==true && mRcw.type()==5 && mtcw.type()==5){
-            for(unsigned int i=0; i<vpMPs2Draw.size(); i++){
 
+            vector<vector<Point> > roi;
+
+            for(unsigned int i=0; i<vpMPs2Draw.size(); i++){
                 MapPoint* pMP0 = vpMPs2Draw[i][0];
                 MapPoint* pMP1 = vpMPs2Draw[i][1];
                 MapPoint* pMP2 = vpMPs2Draw[i][2];
 
                 if (pMP0 && pMP1 && pMP2) {
-                    cv::Point2f v0 = DistortMapPoint(pMP0);
-                    cv::Point2f v1 = DistortMapPoint(pMP1);
-                    cv::Point2f v2 = DistortMapPoint(pMP2);
+                    cv::Point v0 = DistortMapPoint(pMP0);
+                    cv::Point v1 = DistortMapPoint(pMP1);
+                    cv::Point v2 = DistortMapPoint(pMP2);
 
                     int ncolor = 220;
                     cv::line(im,v0,v1,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
                     cv::line(im,v0,v2,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
                     cv::line(im,v1,v2,cv::Scalar(ncolor,ncolor,ncolor),1,8,0);
+
+                    vector<Point> roii;
+                    roii.push_back(v0);
+                    roii.push_back(v1);
+                    roii.push_back(v2);
+                    roi.push_back(roii);
                 }
             }
+            if (vpMPs2DrawWgt.size()>0)
+                im = SetTransparentColor(im, roi, 1.0, 0.5);
         }
     }
 
@@ -325,10 +297,7 @@ void FrameDrawer::Update(Tracking *pTracker)
     vp2fNoSimilar = vector<cv::Point2f>(N,cv::Point2f(0.0,0.0));
     mbOnlyTracking = pTracker->mbOnlyTracking;
 
-    //mvpMapPointsInFrame = pTracker->mCurrentFrame.mvpMapPointsInFrame;
     fvMapPointSearchRadious = pTracker->mCurrentFrame.fvMapPointSearchRadious;
-    //mvpMapPointsWoCloseORB = pTracker->mCurrentFrame.mvpMapPointsWoCloseORB;
-    //mvpMapPointsWoSimilarORB = pTracker->mCurrentFrame.mvpMapPointsWoSimilarORB;
 
     // Frame data
     mRcw = pTracker->mCurrentFrame.Get_mRcw();
@@ -400,7 +369,6 @@ cv::Point2f FrameDrawer::DistortMapPoint(MapPoint* pMP)
     // 3D in absolute coordinates
     cv::Mat P = pMP->GetWorldPos();
 
-    //cout << "Mat Types = " << mRcw.type() << "  " << P.type() << "  " << mtcw.type() << endl;
     // 3D in camera coordinates
     const cv::Mat Pc = mRcw*P+mtcw;
     const float PcX = Pc.at<float>(0);
@@ -452,5 +420,43 @@ bool FrameDrawer::InCircle(cv::Point2f pt, int r)
     else
         return true;
 }
+
+
+Mat FrameDrawer::SetTransparentColor(Mat &img, vector<vector<Point> > &roi, double alpha1, double alpha2) {
+    Mat out;
+    Mat layer = Mat::zeros(img.size(), CV_8UC3);
+
+    for (unsigned int i=0; i<roi.size(); i++){
+        float colorit = vpMPs2DrawWgt[i];
+        Scalar colori = SetColor(colorit);
+
+        vector<vector<Point> > roi1;
+        roi1.push_back(roi[i]);
+
+        fillPoly(layer,roi1,colori);
+    }
+    addWeighted(img, alpha1, layer, alpha2, 0, out);
+    return out;
+}
+
+
+cv::Scalar FrameDrawer::SetColor(float floatValue){
+    int cRed = floatValue * 255;
+    int cBlue = 255 - floatValue * 255;
+    int cGreen = 0;
+
+    if (floatValue>=0 && floatValue<= 0.5)
+       cGreen = floatValue * 512; 
+    else if (floatValue > 0.5 && floatValue <= 1)
+       cGreen = 255 - (floatValue - 0.5)*512;
+    else 
+       return -1;
+
+    cv::Scalar output = cv::Scalar(cBlue,cGreen,cRed);
+    return output;
+}
+
+
+
 
 } //namespace ORB_SLAM

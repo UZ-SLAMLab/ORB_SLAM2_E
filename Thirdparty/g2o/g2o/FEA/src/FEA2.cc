@@ -299,17 +299,10 @@ bool FEA2::ComputeMesh(int nMode) {
         int nSurAng = 150;
         int nMinAng = 45;
         int nMaxAng = 90;
-        //CalculateGP3Parameters(ptr_pc_t_mesh_1,&nInMu,&nSearchRad,&nMaxNeig,&nSurAng,&nMinAng,&nMaxAng);
-        //cout << "InMu = " << nInMu << endl;
-        //cout << "nSearchRad = " << nSearchRad << endl;
-        //cout << "nMaxNeig = " << nMaxNeig << endl;
-        //cout << "nSurAng = " << nSurAng << endl;
-        //cout << "nMinAng = " << nMinAng << endl;
-        //cout << "nMaxAng = " << nMaxAng << endl;
-
-        //nSearchRad = 30;
-        //nSurAng = 120;
-        //nMaxNeig = 1000000;
+        
+        CalculateGP3Parameters(ptr_pc_t_mesh_1,&nInMu,&nSearchRad,&nMaxNeig,&nSurAng,&nMinAng,&nMaxAng);
+        if (bDebugMode) cout << "           - GP3Parameters(InMu/nSearchRad/nMaxNeig/nSurAng/nMinAng/nMaxAng) = " 
+                             << nInMu << " / " << nSearchRad << " / " << nMaxNeig << " / " << nSurAng << " / " << nMinAng << " / " << nMaxAng << endl;
 
         // Greedy Projection
         static pcl::GreedyProjectionTriangulation<pcl::PointNormal> GreedyProj3;
@@ -320,8 +313,6 @@ bool FEA2::ComputeMesh(int nMode) {
         GreedyProj3.setMinimumAngle(nMinAng); // 10 degrees
         GreedyProj3.setMaximumAngle(nMaxAng); // 120 degrees 2/3
         GreedyProj3.setNormalConsistency(true);
-
-        /*cout << "GP3 Params: " << nInMu << " " << nSearchRad << " " << nMaxNeig << endl;*/
 
         bool bGo = true;
         if (bGo == true)
@@ -526,13 +517,6 @@ void FEA2::CalculateGP3Parameters(pcl::PointCloud<pcl::PointNormal>::Ptr ppc, in
         fsigmamin = sqrt(fsigmamin);
         fsigmamax = sqrt(fsigmamax);
     }
-
-    /*
-    cout << " -- Min = " << fmedmin << " - " << fsigmamin << endl;
-    cout << " -- Max = " << fmedmax << " - " << fsigmamax << endl;
-    cout << " -- Tot = " << fmedtot << " - " << fsigmatot << endl;
-    cout << " Search Radious " << ceil(fmedtot) << endl;
-    */
 
     *pnInMu = ceil(fmedtot/fmedmin);
     *pnSearchRad = ceil(fmedtot);
@@ -1236,35 +1220,6 @@ void FEA2::SetSecondLayer(int nMode) {
 
 
 void FEA2::Set_u0(vector<MapPoint*> vpMPs, int nMode) {
-    /*
-    cout << "Set_u0" << endl;
-    cout << "nMode=" << nMode << endl;
-    if (nMode == 1 ) {
-        cout << "1" << endl;
-        u0.clear();
-        vector<vector<float> > vt1 = vector_resize_cols(vMPsXYZN_t,1);
-        vector<vector<float> > vt2 = vector_resize_cols(vMPsXYZN_t2,1);
-        u0.resize(vt1.size()+vt2.size());
-        cout << "u0=" << u0.size() << "  vt1=" << vt1.size() << "  vt2=" << vt2.size() << endl;
-        for (unsigned int i=0; i<vt1.size(); i++)
-            u0[i] = vt1[i][0];
-        for (unsigned int i=0; i<vt2.size(); i++)
-            u0[i] = vt2[i][0];
-    }
-    else if (nMode == 2) {
-        cout << "2" << endl;
-        u0u.clear();
-        for (unsigned int i=0; i<vMPsXYZN_ut.size(); i++)
-            for (unsigned int j=0; j<vMPsXYZN_ut[i]; j++)
-                u0u.push_back(vMPsXYZN_ut[i][j]);
-        for (unsigned int i=0; i<vMPsXYZN_ut2.size(); i++)
-            for (unsigned int j=0; j<vMPsXYZN_ut2[i]; j++)
-                u0u.push_back(vMPsXYZN_ut2[i][j]);
-    }
-    */
-
-
-
     if (nMode == 1) {
         u0.clear();
         for (unsigned int i=0; i<vMPsXYZN_t.size(); i++)
@@ -1558,8 +1513,6 @@ bool FEA2::MatrixAssemblyC3D6(int nMode) {
 
         K = vector<vector<float> >(Ksize,vector<float>(Ksize,0.0));
 
-        //cout << " 0 " << endl;
-
         for (unsigned int i=0; i<triangles_t.size(); i++) {
             vector<int> nodes;
             nodes.push_back(triangles_t[i][0]);
@@ -1568,8 +1521,6 @@ bool FEA2::MatrixAssemblyC3D6(int nMode) {
             nodes.push_back(triangles_t[i][0] + vMPsXYZN_t.size());
             nodes.push_back(triangles_t[i][1] + vMPsXYZN_t.size());
             nodes.push_back(triangles_t[i][2] + vMPsXYZN_t.size());
-
-            //cout << " 1 " << endl;
 
             vector<vector<float> > vfPts;
             for (unsigned int j=0; j<3; j++) {
@@ -1580,8 +1531,6 @@ bool FEA2::MatrixAssemblyC3D6(int nMode) {
                 vfPts.push_back(vfPtsi);
             }
 
-            //cout << " 2 " << endl;
-
             for (unsigned int j=0; j<3; j++) {
                 vector<float> vfPtsi;
                 vfPtsi.push_back(vMPsXYZN_t2[nodes[j]][0]);
@@ -1590,18 +1539,13 @@ bool FEA2::MatrixAssemblyC3D6(int nMode) {
                 vfPts.push_back(vfPtsi);
             }
 
-            //cout << " 3 " << endl;
-
             vector<vector<float> > Kei = ComputeKeiC3D6(vfPts);
-
-            //cout << " 4 " << endl;
 
             vector<int> mn;
             for (unsigned j=0; j<nodes.size(); j++) {
                 mn.push_back(nodes[j]*3);
             }
 
-            //cout << "pre-k" << endl;
             for (unsigned int ni=0; ni<nodes.size(); ni++){
                 for (unsigned int nj=0; nj<nodes.size(); nj++){
                     for (unsigned int m=0; m<3; m++){
@@ -1612,7 +1556,6 @@ bool FEA2::MatrixAssemblyC3D6(int nMode) {
                     }
                 }
             }
-            //cout << "6" << endl;
         }
         return true;
     }
@@ -1698,11 +1641,6 @@ void FEA2::ImposeDirichletEncastre_K(int nMode, vector<vector<int> > vD, float K
             Ku[mp1][mp1] = Klarge;
             Ku[mp2][mp2] = Klarge;
         }
-        /*
-        K[mp0][mp0] = Klarge;
-        K[mp1][mp1] = Klarge;
-        K[mp2][mp2] = Klarge;
-        */
     }
 }
 
@@ -1712,10 +1650,6 @@ void FEA2::ImposeDirichletEncastre_a(vector<vector<int> > vD, float Klarge){
         int mp0 = 3*(vD[i][0] - 1);
         int mp1 = mp0 + 1;
         int mp2 = mp0 + 2;
-
-        //K[mp0][mp0] = Klarge;
-        //K[mp1][mp1] = Klarge;
-        //K[mp2][mp2] = Klarge;
 
         vva[mp0][0] = 1/Klarge;
         vva[mp1][0] = 1/Klarge;
@@ -1840,25 +1774,6 @@ void FEA2::Set_uf(vector<vector<float> > vPoints){
         vMPsXYZN_t.push_back(mi);
     }
 
-
-    /*
-    vMPsXYZN_t2.clear();
-    vMPsXYZN_t2.resize(vMPsXYZN_t.size());
-
-    for (unsigned int i=0; i<vMPsXYZN_t.size(); i++){
-	    if (vMPsXYZN_t[i].empty())
-            continue;
-
-		vector<float> point;
-		point.push_back(vMPsXYZN_t[i][0] - h);
-		point.push_back(vMPsXYZN_t[i][1] - h);
-		point.push_back(vMPsXYZN_t[i][2] - h);
-
-		vMPsXYZN_t2[i] = point;
-	}
-    */
-
-
     uf.clear();
 
     for (unsigned int i=0; i<vMPsXYZN_t.size(); i++){
@@ -1896,12 +1811,71 @@ void FEA2::ComputeDisplacement(){
 void FEA2::ComputeForces(){
     vvf.clear();
     vvf = MultiplyMatricesEigen(K,vva);
+
+    vpMPs2DrawWgt = ComputeScaledDef(vvf,100);
+}
+
+
+vector<float> FEA2::ComputeScaledDef(vector<vector<float> > vf, float scalerange){
+
+    vector<vector<float> > vf1 = vector_resize_cols(vf,3);
+
+    vector<float> vf2;
+    for (unsigned int i=0; i<vf1.size(); i++){
+        float vfi2 = 0.0;
+        for (unsigned int j=0; j<vf1[i].size(); j++)
+            vfi2 += vf1[i][j]*vf1[i][j];
+        vf2.push_back(sqrt(vfi2));
+    }
+
+    float vfmin = 0.0;
+    float vfmax = 0.0;
+    for (unsigned int i=0; i<vf2.size(); i++){
+        if (i==0){
+            vfmin = vf2[i];
+            vfmax = vf2[i];
+        }
+        else if (vf2[i]<vfmin)
+            vfmin = vf2[i];
+        else if (vf2[i]>vfmax)
+            vfmax = vf2[i];
+    }
+
+    vfmax -= vfmin;
+    vector<float> vsf;
+    for (unsigned int i=0;i<vf2.size(); i++)
+        vsf.push_back((vf2[i] - vfmin) / vfmax);
+
+
+    vfmin = 0.0;
+    vfmax = 0.0;
+    vector<float> nvsf;
+    for (unsigned int i=0; i<triangles_t.size(); i++){
+        float tricolor = 0.0;
+        for (unsigned int j=0; j<triangles_t[i].size(); j++)
+            tricolor += vsf[triangles_t[i][j]]/3;
+        nvsf.push_back(tricolor);
+        if (i==0){
+            vfmin = tricolor;
+            vfmax = tricolor;
+        }
+        else if (tricolor<vfmin)
+            vfmin = tricolor;
+        else if (tricolor>vfmax)
+            vfmax = tricolor;
+    }
+
+    vfmax -= vfmin;
+    vector<float> nvsf2;
+    for (unsigned int i=0;i<nvsf.size(); i++)
+        nvsf2.push_back((nvsf[i] - vfmin) / vfmax);
+
+    return nvsf2;
 }
 
 
 float FEA2::ComputeStrainEnergy(){
     // sE = a' · K · a = a' · F
-
     vector<vector<float> > vvat;
     vector<float> vvati;
     for (unsigned int i=0; i<vva.size(); i++){
@@ -1909,25 +1883,8 @@ float FEA2::ComputeStrainEnergy(){
     }
     vvat.push_back(vvati);
 
-    /*
-    cout << "vvat" << endl;
-    for (unsigned int i=0; i<vvat.size(); i++){
-        cout << vvat[i][0] << " ";
-    }
-    cout << endl << endl;
-
-    cout << "vvf" << endl;
-    for (unsigned int i=0; i<vvf.size(); i++){
-        cout << vvf[i][0] << " ";
-    }
-    cout << endl << endl;
-    */
-
     vector<vector<float> > vvsE = MultiplyMatricesEigen(vvat,vvf);
     sE = vvsE[0][0];
-
-
-    //cout << "sE  " << vvsE[0][0] << endl;
 
     if (sE < 0.0)
         sE = -sE;
@@ -1938,9 +1895,6 @@ float FEA2::ComputeStrainEnergy(){
 
 
 float FEA2::NormalizeStrainEnergy(){
-    //float invNormFactor = 1/fNormFactor;
-    //nsE = sE*invNormFactor;
-
     int nEl = Ksize/3;
     nsE = sE / nEl;
 
@@ -1949,11 +1903,6 @@ float FEA2::NormalizeStrainEnergy(){
 
 
 void FEA2::UpdateForces(){
-    //cout << "vvf  " << vvf.size() << endl
-    //     << "     " << vMPsXYZN_t.size() << "  " << vMPsXYZN_t2.size() << endl
-    //     << "     " << vMPsXYZN_ut.size() << "  " << vMPsXYZN_ut2.size() << endl
-    //     << "     " << vpMPs_t.size() << "  " << vpMPs_ut.size() << endl;
-
     unsigned int nadd = 3*(vMPsXYZN_u.size() + vMPsXYZN_u2.size() - vMPsXYZN_t.size() - vMPsXYZN_t2.size());
     for (unsigned int i=0; i<nadd; i++){
         vector<float> vfi = vector<float>(1,0.0);
@@ -1963,8 +1912,6 @@ void FEA2::UpdateForces(){
 
 
 void FEA2::ComputeNewDisplacement(){
-    //cout << "vva2  " << vva2.size() << endl;
-
     vva2 = MultiplyMatricesEigen(Ku,vvf);
     vva2 = vector_resize_cols(vva2,3);
 }
@@ -1973,6 +1920,21 @@ void FEA2::ComputeNewDisplacement(){
 vector<vector<float> > FEA2::vector_resize_cols(vector<vector<float> > v1, unsigned int n){
     vector<vector<float> > v2;
     vector<float> v2i;
+    for (unsigned int i=0; i<v1.size(); i++){
+        for (unsigned int j=0; j<v1[i].size(); j++){
+            v2i.push_back(v1[i][j]);
+            if (v2i.size() == n){
+                v2.push_back(v2i);
+                v2i.clear();
+            }
+        }
+    }
+    return v2;
+}
+
+vector<vector<int> > FEA2::vector_resize_cols_int(vector<vector<int> > v1, unsigned int n){
+    vector<vector<int> > v2;
+    vector<int> v2i;
     for (unsigned int i=0; i<v1.size(); i++){
         for (unsigned int j=0; j<v1[i].size(); j++){
             v2i.push_back(v1[i][j]);
@@ -1996,5 +1958,3 @@ float FEA2::GetNormalizedStrainEnergy() { return nsE; }
 void FEA2::setbfea2(bool bSet) { bInFEA2 = bSet; }
 
 void FEA2::setbfea(bool bSet) { bInFEA = bSet; }
-
-//void FEA2::setCurrEdge(int input) { nCurrEdge = input; }

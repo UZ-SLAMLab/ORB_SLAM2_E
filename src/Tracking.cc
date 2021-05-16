@@ -1924,7 +1924,6 @@ bool Tracking::Relocalization()
                 Tcw.copyTo(mCurrentFrame.mTcw);
 
                 set<MapPoint*> sFound;
-                /*const int np = vbInliers.size();*/
                 int nAdded = 0;
                 int nAddedProj = 0;
 
@@ -1944,7 +1943,6 @@ bool Tracking::Relocalization()
                 {
                     if (vpMatchesByProjection[j])
                     {
-                        //nAddedProj++;
                         mCurrentFrame.mvpMapPoints[j] = vpMatchesByProjection[j];
                         sFound.insert(vpMatchesByProjection[j]);
                         if (mCurrentFrame.mvpMapPoints[j])
@@ -1998,19 +1996,15 @@ bool Tracking::Relocalization()
                 reloct23 = cv::getTickCount();
                 reloct2_NR = (reloct23-reloct22)/relocf;
                 if (bDebugMode) cout << "             S1- Time(R-NR)(" << reloct2_R << "-" << reloct2_NR << ") \t R(" << nGoodR << ")  NR(" << nGoodNR << ") \t ";
-                if((nGoodR<10) && (nGoodNR<10))
-                {
+                if((nGoodR<10) && (nGoodNR<10)) {
                     if (bDebugMode) cout << "Not enough." << endl;
-                    //continue;
                 }
-                else if (nGoodR>=10 && nGoodNR<10)
-                {
+                else if (nGoodR>=10 && nGoodNR<10) {
                     if (bDebugMode) cout << "Enough rigid." << endl;
                     mTcwR.copyTo(mCurrentFrame.mTcw);
                     nGood = nGoodR;
                 }
-                else if (nGoodNR>=10)
-                {
+                else if (nGoodNR>=10) {
                     if (bDebugMode) cout << "Enough non-rigid." << endl;
                     nGood = nGoodNR;
                 }
@@ -2063,19 +2057,15 @@ bool Tracking::Relocalization()
                         pStatsReloc->AddValueFl(reloct3_NR);
 
                         if (bDebugMode) cout << "                 Time(R-NR)(" << reloct3_R << "-" << reloct3_NR << ") \t R(" << nGoodR << ")  NR(" << nGoodNR << ") \t ";
-                        if((nGoodR<10) && (nGoodNR<10))
-                        {
+                        if((nGoodR<10) && (nGoodNR<10)) {
                             if (bDebugMode) cout << "Not enough." << endl;
-                            //continue;
                         }
-                        else if (nGoodR>=10 && nGoodNR<10)
-                        {
+                        else if (nGoodR>=10 && nGoodNR<10) {
                             if (bDebugMode) cout << "Enough rigid." << endl;
                             mTcwR.copyTo(mCurrentFrame.mTcw);
                             nGood = nGoodR;
                         }
-                        else if (nGoodNR>=10)
-                        {
+                        else if (nGoodNR>=10) {
                             if (bDebugMode) cout << "Enough non-rigid." << endl;
                             nGood = nGoodNR;
                         }
@@ -2120,19 +2110,15 @@ bool Tracking::Relocalization()
                                 reloct43 = getTickCount();
                                 reloct4_NR = (reloct43-reloct42)/relocf;
                                 if (bDebugMode) cout << "                 Time(R-NR)(" << reloct4_R << "-" << reloct4_NR << ") \t R(" << nGoodR << ")  NR(" << nGoodNR << ") \t ";
-                                if((nGoodR<50) && (nGoodNR<50))
-                                {
+                                if((nGoodR<50) && (nGoodNR<50)) {
                                     if (bDebugMode) cout << "Not enough." << endl;
-                                    //continue;
                                 }
-                                else if (nGoodR>=50 && nGoodNR<50)
-                                {
+                                else if (nGoodR>=50 && nGoodNR<50) {
                                     if (bDebugMode) cout << "Enough rigid." << endl;
                                     mTcwR.copyTo(mCurrentFrame.mTcw);
                                     nGood = nGoodR;
                                 }
-                                else if (nGoodNR>=50)
-                                {
+                                else if (nGoodNR>=50) {
                                     if (bDebugMode) cout << "Enough non-rigid." << endl;
                                     nGood = nGoodNR;
                                 }

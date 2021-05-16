@@ -477,13 +477,6 @@ int Optimizer::PoseOptimization(Frame *pFrame)
 
 int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer, int nElType, bool bDebugMode)
 {
-    // Simulation parameters & Model constants
-    //bool bDebug = true;
-    //const unsigned int in_E = 3500;
-    //const float in_nu = 0.495;
-    //const float in_h = 0.5;
-    //const float in_fg1 = 0.577350269;
-
     FEA2 fea2(pFrame->mnId,3500,0.495,0.5,0.577350269,nElType,bDebugMode);
     FEA2* pFEA2 = &fea2;
 
@@ -514,7 +507,6 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
     /// VERTEX - Fixed - KFs that observe matched MPs in current frame
     vector<MapPoint*> vpMapPoints;//todelete
     vector<cv::KeyPoint> vKeysUn;//todelete
-    // vector<cv::KeyPoint> vKeys;     //DrawFrame
     vector<KeyFrame*> vpFixedKFs;
     unsigned int nKFs = 0;
     unsigned int nMaxIdKf = 0;
@@ -589,17 +581,11 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
     {
         MapPoint* pMP = vpAllMapPoints[iMP];
 
-        //cout << "extra" << endl;
-
         if (pMP->bSetForReloc)
             continue;
 
-        //cout << "noreloc" << endl;
-
         if (!isInFrustum(pMP, *pFrame, mRcw, mtcw, 0.5))
             continue;
-
-        //cout << "inframe" << endl;
 
         // Restore MP and restore flag's default state
         vpMPsInFrame.push_back(pMP);
@@ -645,16 +631,6 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
         nInitialCorrespondences++;                                          // Suma de correspondencias.
         pFrame->mvbOutlier[i] = false;                                      // Marca el punto como correcto, no outlier.
         vnMobileVertices.push_back(id);
-
-        /*
-        Mat mpworldpos = pMP->GetWorldPos();
-        cout << "Mat World Post  " << mpworldpos.rows << "   " << mpworldpos.cols << endl;
-        float PcX = mpworldpos.at<float>(0);
-        float PcY = mpworldpos.at<float>(1);
-        float PcZ = mpworldpos.at<float>(2);
-        cout << "pos   " << PcX << "  " << PcY << "  " << PcZ << endl;
-        */
-
 
         // First we set an edge between the MP and the current Frame
         Eigen::Matrix<double,2,1> obsF;
@@ -732,8 +708,7 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
         }
     }
 
-    if(nInitialCorrespondences<3)
-    {
+    if(nInitialCorrespondences<3){
         cout << "        NLO- InitialCorrespondences(" << nInitialCorrespondences << ")  NOK(n<3)  Return0" << endl;
         return 0;
     }
@@ -813,8 +788,7 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
     }
 
     // Restore default state of MP flag
-    for (unsigned int i=0; i<vpMapPointEdge.size(); i++)
-    {
+    for (unsigned int i=0; i<vpMapPointEdge.size(); i++){
         MapPoint* pMP = vpMapPointEdge[i];
         if (pMP)
             pMP->bRelocCheck = true;
@@ -832,11 +806,6 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
         Eigen::Matrix<double, 3, 1> p1_1 = vSBA_recov->estimate();
         Mat m1_1 = Converter::toCvMat(p1_1);
         vpMapPoints[i]->SetWorldPos(m1_1);
-
-        //Mat m1_0 = vpMapPoints[i]->GetWorldPos();
-        //cout << " Point 0 1   " << m1_0.at<float>(0) << "  " << m1_1.at<float>(0) << endl;
-        //cout << "             " << m1_0.at<float>(1) << "  " << m1_1.at<float>(1) << endl;
-        //cout << "             " << m1_0.at<float>(2) << "  " << m1_1.at<float>(2) << endl;
     }
     cout << "        NLO- Displacements 1 Applied" << endl;
 
@@ -858,6 +827,8 @@ int Optimizer::PoseOptimizationNR(Frame *pFrame, Map* pMap, FrameDrawer *pFrameD
     }
     */
 
+    pFrameDrawer->vpMPs2DrawWgt = fea2.vpMPs2DrawWgt;
+    
     cout << "        NLO- Completed" << endl;
     return nInitialCorrespondences-nBad;
 }

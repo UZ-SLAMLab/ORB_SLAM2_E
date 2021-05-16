@@ -54,6 +54,7 @@ public:
 
     vector<vector<cv::KeyPoint*> > vpKPs2Draw;
     vector<vector<MapPoint*> > vpMPs2Draw;
+    vector<float> vpMPs2DrawWgt;
 
 protected:
 
@@ -63,14 +64,13 @@ protected:
     cv::Point2f UndistortPoint(cv::Point2f pt);
     bool InCircle(cv::Point2f pt, int r);
 
+    Mat SetTransparentColor(Mat &img, vector<vector<Point> > &roi, double alpha1, double alpha2); 
+    cv::Scalar SetColor(float floatValue);
     // Info of the frame to be drawn
     cv::Mat mIm;
     int N;
     vector<cv::KeyPoint> mvCurrentKeys;
-    //vector<MapPoint*> mvpMapPointsInFrame;
     vector<float> fvMapPointSearchRadious;
-    //vector<MapPoint*> mvpMapPointsWoCloseORB;
-    //vector<MapPoint*> mvpMapPointsWoSimilarORB;
     vector<bool> mvbMap, mvbVO;
     vector<bool> mvbNewMP, mvbOutlier, mvbNoClose, mvbNoSimilar;
     vector<bool> mvbKP2Draw;

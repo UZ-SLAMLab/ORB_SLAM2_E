@@ -152,10 +152,13 @@ public:	// FUNCTIONS
     void UpdateForces();
 
     vector<vector<float> > vector_resize_cols(vector<vector<float> > v1, unsigned int n);
+    vector<vector<int> > vector_resize_cols_int(vector<vector<int> > v1, unsigned int n);
+    vector<float> ComputeScaledDef(vector<vector<float> > vf, float scalerange);
+
+
 
     void setbfea(bool bSet);
     void setbfea2(bool bSet);
-//    void setCurrEdge(int input);
 
 public:	// VARIABLES
 
@@ -177,7 +180,9 @@ public:	// VARIABLES
     vector<g2o::VertexSBAPointXYZ*> vVertices;
 
     vector<vector<MapPoint*> > vpMPs2Draw;
+    vector<float> vpMPs2DrawWgt;
     vector<vector<MapPoint*> > vpMPs2Drawu;
+    vector<int> vpMPs2DrawuWgt;
     vector<vector<cv::KeyPoint*> > vpKPs2Draw;
     vector<vector<cv::KeyPoint*> > vpKPs2Drawu;
 
@@ -268,6 +273,7 @@ public:	// VARIABLES
 
     // Forces
     vector<vector<float> > vvf;
+    vector<int> svvf;
 
     // Strain energy
     float sE;
@@ -282,7 +288,6 @@ public:	// VARIABLES
 
     bool bInFEA = false;
     bool bInFEA2 = false;
-//    int nCurrEdge = 0;
 
     bool it0 = false;
 
