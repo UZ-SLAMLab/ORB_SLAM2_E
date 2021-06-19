@@ -275,8 +275,8 @@ cv::Mat PnPsolver::iterate(Frame &rF, vector<MapPoint*> &vpMapPointMatches, int 
     nInliers = 0;
     mnIterations = 0;
 
-    pStats1->NewLine();
-    pStats1->AddValue(N);
+    //pStats1->NewLine();
+    //pStats1->AddValue(N);
 
     //int mvbBestMatches = 0;
     vector<cv::Mat> vBestPoses;
@@ -383,13 +383,13 @@ cv::Mat PnPsolver::iterate(Frame &rF, vector<MapPoint*> &vpMapPointMatches, int 
                         }
                     }
 
-                    pStats1->AddValue(1);
-                    pStats1->AddValue(mnInliersi);
-                    pStats1->AddValue(nMatched);
+                    //pStats1->AddValue(1);
+                    //pStats1->AddValue(mnInliersi);
+                    //pStats1->AddValue(nMatched);
 
                     relocte = cv::getTickCount();
                     reloct = (relocte-relocts)/relocfr;
-                    pStats1->AddValueFl(reloct);
+                    //pStats1->AddValueFl(reloct);
                     cout << "        Stage time = " << reloct << endl;
 
                     return mRefinedTcw.clone();
@@ -403,13 +403,13 @@ cv::Mat PnPsolver::iterate(Frame &rF, vector<MapPoint*> &vpMapPointMatches, int 
     if (inlierPoses.size()==0)
     {
         cout << "        PnP- Not a valid pose found." << endl;
-        pStats1->AddValue(0);
-        pStats1->AddValue(0);
-        pStats1->AddValue(0);
+        //pStats1->AddValue(0);
+        //pStats1->AddValue(0);
+        //pStats1->AddValue(0);
 
         relocte = cv::getTickCount();
         reloct = (relocte-relocts)/relocfr;
-        pStats1->AddValueFl(reloct);
+        //pStats1->AddValueFl(reloct);
 
         bNoMore = true;
         return cv::Mat();
@@ -549,13 +549,13 @@ cv::Mat PnPsolver::iterate(Frame &rF, vector<MapPoint*> &vpMapPointMatches, int 
                         }
                     }
 
-                    pStats1->AddValue(2);
-                    pStats1->AddValue(mPrTh);
-                    pStats1->AddValue(nMatched);
+                    //pStats1->AddValue(2);
+                    //pStats1->AddValue(mPrTh);
+                    //pStats1->AddValue(nMatched);
 
                     relocte = cv::getTickCount();
                     reloct = (relocte-relocts)/relocfr;
-                    pStats1->AddValueFl(reloct);
+                    //pStats1->AddValueFl(reloct);
 
                     return tempTcw.clone();
                 }
@@ -607,25 +607,25 @@ cv::Mat PnPsolver::iterate(Frame &rF, vector<MapPoint*> &vpMapPointMatches, int 
 
             std::cout << "        PnP- Returns camera pose with " << bestMatches << " inliers." << std::endl;
 
-            pStats1->AddValue(3);
-            pStats1->AddValue(max1histvalue);
-            pStats1->AddValue(bestMatches);
+            //pStats1->AddValue(3);
+            //pStats1->AddValue(max1histvalue);
+            //pStats1->AddValue(bestMatches);
 
             relocte = cv::getTickCount();
             reloct = (relocte-relocts)/relocfr;
-            pStats1->AddValueFl(reloct);
+            //pStats1->AddValueFl(reloct);
 
             return ProjectionPoses[bestIndex].clone();
         }
         else
         {
-            pStats1->AddValue(0);
-            pStats1->AddValue(0);
-            pStats1->AddValue(0);
+            //pStats1->AddValue(0);
+            //pStats1->AddValue(0);
+            //pStats1->AddValue(0);
 
             relocte = cv::getTickCount();
             reloct = (relocte-relocts)/relocfr;
-            pStats1->AddValueFl(reloct);
+            //pStats1->AddValueFl(reloct);
 
             bNoMore = true;
             return cv::Mat();
@@ -633,13 +633,13 @@ cv::Mat PnPsolver::iterate(Frame &rF, vector<MapPoint*> &vpMapPointMatches, int 
 
     }
 
-    pStats1->AddValue(0);
-    pStats1->AddValue(0);
-    pStats1->AddValue(0);
+    //pStats1->AddValue(0);
+    //pStats1->AddValue(0);
+    //pStats1->AddValue(0);
 
     relocte = cv::getTickCount();
     reloct = (relocte-relocts)/relocfr;
-    pStats1->AddValueFl(reloct);
+    //pStats1->AddValueFl(reloct);
 
     bNoMore = true;
     return cv::Mat();

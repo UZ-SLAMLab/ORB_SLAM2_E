@@ -169,6 +169,7 @@ OptimizationAlgorithm::SolverResult OptimizationAlgorithmLevenberg::solve(int it
 
             sE = pFEA2->ComputeStrainEnergy();
             nsE = pFEA2->NormalizeStrainEnergy();
+            //nsE = sE;
 
             /*
             for (unsigned int a=0; a<pFEA2->K.size(); a++){

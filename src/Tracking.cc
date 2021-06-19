@@ -175,33 +175,11 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
     cout << endl;
 
     // Output text files for saving statistics of PnP and NonLinearOptimization
-    // One pointer for Rigid Model and one pointer for Non-Rigid Model
-    static Statistics StatsReloc("/home/cirauqui/workspace/ORB_SLAM2/output/evaluation/StatsReloc.txt");
+    static Statistics StatsReloc("/home/icirauqui/workspace/ORB_SLAM2_E/output/evaluation/StatsReloc.txt");
       pStatsReloc = &StatsReloc;
       pStatsReloc->OpenFile(1);
       pStatsReloc->ColumnHeadersReloc();
       pStatsReloc->CloseFile();
-
-    static Statistics StatsPR("/home/cirauqui/workspace/ORB_SLAM2/output/evaluation/StatsPR.txt");
-      pStatsPR = &StatsPR;
-      pStatsPR->OpenFile(1);
-      pStatsPR->ColumnHeadersPR();
-      pStatsPR->CloseFile();
-
-    static Statistics StatsRelocS1("/home/cirauqui/workspace/ORB_SLAM2/output/evaluation/StatsRelocS1.txt");
-      pStatsRelocS1 = &StatsRelocS1;
-      pStatsRelocS1->OpenFile(1);
-      pStatsRelocS1->ColumnHeadersRelocS1();
-      pStatsRelocS1->CloseFile();
-
-    static Statistics StatsRelocS2("/home/cirauqui/workspace/ORB_SLAM2/output/evaluation/StatsRelocS2.txt");
-      pStatsRelocS2 = &StatsRelocS2;
-      pStatsRelocS2->OpenFile(1);
-      pStatsRelocS2->CloseFile();
-    static Statistics StatsRelocS3("/home/cirauqui/workspace/ORB_SLAM2/output/evaluation/StatsRelocS3.txt");
-      pStatsRelocS3 = &StatsRelocS3;
-      pStatsRelocS3->OpenFile(1);
-      pStatsRelocS3->CloseFile();
 
     nRelocalizationsCounter = 0;
 
@@ -210,11 +188,6 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
     kpiFP = 0;
     kpiFN = 0;
     kpiP = 0;
-
-
-
-
-
 }
 
 void Tracking::SetLocalMapper(LocalMapping *pLocalMapper)
@@ -518,29 +491,17 @@ void Tracking::Track()
 
             if (mCurrentFrame.mnId-mnLastRelocFrameId>0 && mCurrentFrame.mnId<=mnLastRelocFrameId+nPrecisionFrames && !bOK) {
                 // False Positive = Track not maintained for n frames after relocalization
-                pStatsPR->AddValue(mnLastRelocFrameId);
-                pStatsPR->AddValue(1);
-                pStatsPR->AddValue(0);
-                pStatsPR->NewLine();
                 kpiFP++;
                 kpiTot++;
             }
             else if (mCurrentFrame.mnId==mnLastRelocFrameId+nPrecisionFrames && bOK) {
                 // True Positive = Track maintained for n frames after relocalization
-                pStatsPR->AddValue(mnLastRelocFrameId);
-                pStatsPR->AddValue(1);
-                pStatsPR->AddValue(1); //Save TP and go back to state lost
-                pStatsPR->NewLine();
                 kpiTP++;
                 kpiTot++;
                 if (bTestAllFrames) bOK = false;
             }
             else if (!bOK) {
                 // False Negative = Didn't tried to relocate
-                pStatsPR->AddValue(mnLastRelocFrameId);
-                pStatsPR->AddValue(1);
-                pStatsPR->AddValue(0);
-                pStatsPR->NewLine();
                 kpiFN++;
                 kpiTot++;
             }
@@ -1752,9 +1713,10 @@ bool Tracking::Relocalization()
     cout << endl;
     cout << "-R- START RELOC PROCESS - Frame " << mCurrentFrame.mnId << endl;
     nRelocalizationsCounter++;
-    pStatsReloc->NewIteration(nRelocalizationsCounter);
-    if ( ((nRelocalizationsCounter-1)==0) || (((nRelocalizationsCounter-1)%10)==0) )
-        pStatsReloc->ColumnHeadersReloc();
+    pStatsReloc->NewLine();
+    //pStatsReloc->NewIteration(nRelocalizationsCounter);
+    //if ( ((nRelocalizationsCounter-1)==0) || (((nRelocalizationsCounter-1)%10)==0) )
+    //    pStatsReloc->ColumnHeadersReloc();
 
     float reloct1 = 0.0;
     float reloct11, reloct12;
@@ -1770,22 +1732,18 @@ bool Tracking::Relocalization()
 
     if(vpCandidateKFs.empty())
     {
-        cout << "-R- DBoW can't find any candidate KFs" << endl;
+        // Stats col 1 = number of candidate keyframes
         pStatsReloc->AddValue(0);
-        pStatsRelocS1->AddValue(mCurrentFrame.mnId);
-        pStatsRelocS1->AddValue(0);
-        pStatsPR->AddValue(mCurrentFrame.mnId);
-        pStatsPR->AddValue(0);
-        pStatsPR->AddValue(0);
-        pStatsPR->NewLine();
+
+        cout << "-R- DBoW can't find any candidate KFs" << endl;
         return false;
     }
 
     const int nKFs = vpCandidateKFs.size();
     if (bDebugMode) cout << "-R- " << nKFs << " candidate KFs found" << endl;
-    pStatsReloc->NewLine();
+
+    // Stats col 1 = number of candidate keyframes
     pStatsReloc->AddValue(nKFs);
-    pStatsRelocS1->AddValue(nKFs);
 
     // We perform first an ORB matching with each candidate
     // If enough matches are found we setup a PnP solver
@@ -1843,16 +1801,9 @@ bool Tracking::Relocalization()
         kpiP++;
     }
 
+    // Stats cols 2 & 3 - number of candidate keyframes with 15 matches, and with 4 matches
     pStatsReloc->AddValue(nCandidates15);
     pStatsReloc->AddValue(nCandidates);
-
-    pStatsRelocS1->AddValue(mCurrentFrame.mnId);
-    pStatsRelocS1->AddValue(nCandidates15);
-    pStatsRelocS1->AddValue(nCandidates);
-    for (unsigned int nn=0; nn<number_of_matches.size(); nn++)
-        pStatsRelocS1->AddValue(number_of_matches[nn]);
-    pStatsRelocS1->NewLine();
-
 
     // Alternatively perform some iterations of P4P RANSAC
     // Until we found a camera pose supported by enough inliers
@@ -1878,14 +1829,36 @@ bool Tracking::Relocalization()
             int nInliers;
             bool bNoMore;
 
-            // Choose relocation method: 1(original) 2(TFG)
-            int iterationModel = 2;
-
             PnPsolver* pSolver = vpPnPsolvers[i];
             cv::Mat Tcw;
             vector<MapPoint*> vpMatchesByProjection;
             vpMatchesByProjection = vector<MapPoint*>(vvpMapPointMatches[i].size(), static_cast<MapPoint*>(NULL));
 
+            // Original and modded iteration methods are run for evaluation purposes while debug mode is active
+            pStatsReloc->AddText("PnP");
+            if (bDebugMode) {
+                reloct11 = cv::getTickCount();
+                Tcw = pSolver->iterate(5,bNoMore,vbInliers,nInliers);
+                reloct12 = cv::getTickCount();
+                reloct1 = (reloct12-reloct11)/relocf;
+                nPosesR++;
+
+                if (bDebugMode) cout << "        PnP- Iteration time PnP R " << reloct1 << endl;
+                pStatsReloc->AddValue(nInliers);
+                pStatsReloc->AddValueFl(reloct1);
+            }
+            reloct11 = cv::getTickCount();
+            Tcw = pSolver->iterate(mCurrentFrame,vpMatchesByProjection,5,bNoMore,vbInliers,nInliers,mpMap,pStatsReloc);
+            reloct12 = cv::getTickCount();
+            reloct1 = (reloct12-reloct11)/relocf;
+            nPosesNR++;
+            
+            if (bDebugMode) cout << "        PnP- Iteration time PnP NR " << reloct1 << endl;
+            pStatsReloc->AddValue(nInliers);
+            pStatsReloc->AddValueFl(reloct1);
+
+            /*
+            int iterationModel = 2;
             if (iterationModel==1)
             {
                 reloct11 = cv::getTickCount();
@@ -1898,7 +1871,7 @@ bool Tracking::Relocalization()
             else if (iterationModel==2)
             {
                 reloct11 = cv::getTickCount();
-                Tcw = pSolver->iterate(mCurrentFrame,vpMatchesByProjection,5,bNoMore,vbInliers,nInliers,mpMap,pStatsRelocS2);
+                Tcw = pSolver->iterate(mCurrentFrame,vpMatchesByProjection,5,bNoMore,vbInliers,nInliers,mpMap,pStatsReloc);
                 reloct12 = cv::getTickCount();
                 reloct1 = (reloct12-reloct11)/relocf;
                 nPosesNR++;
@@ -1906,6 +1879,7 @@ bool Tracking::Relocalization()
             }
             if (bDebugMode) cout << "        PnP- Iteration time " << reloct1 << endl;
             pStatsReloc->AddValueFl(reloct1);
+            */
 
             // If Ransac reachs max. iterations discard keyframe
             if(bNoMore)
@@ -1960,6 +1934,8 @@ bool Tracking::Relocalization()
                 if (bDebugMode) cout << "        " << nAdded << " inliers added." << endl;
                 cout << "        Inliers added: DBoW(" << nAdded << ") Proj(" << nAddedProj << ")" << endl;
                 pStatsReloc->AddValue(nAdded);
+                pStatsReloc->AddValue(nAddedProj);
+
                 int nGood = 0;
 
                 float reloct2_R = 0.0;
@@ -1973,8 +1949,6 @@ bool Tracking::Relocalization()
                 float reloct41, reloct42, reloct43;
 
                 RestoreRigidityFlag();
-                int nFinalInliers_R = 0;
-                int nFinalInliers_NR = 0;
 
                 reloct21 = cv::getTickCount();
 
@@ -2009,10 +1983,8 @@ bool Tracking::Relocalization()
                     nGood = nGoodNR;
                 }
 
-                nFinalInliers_R = nGoodR;
-                nFinalInliers_NR = nGoodNR;
-
                 pStatsReloc->AddValue(nGoodR);
+                pStatsReloc->AddValueFl(reloct2_R);
                 pStatsReloc->AddValue(nGoodNR);
                 pStatsReloc->AddValueFl(reloct2_NR);
 
@@ -2053,6 +2025,7 @@ bool Tracking::Relocalization()
                         reloct33 = getTickCount();
                         reloct3_NR = (reloct33-reloct32)/relocf;
                         pStatsReloc->AddValue(nGoodR);
+                        pStatsReloc->AddValueFl(reloct2_R);
                         pStatsReloc->AddValue(nGoodNR);
                         pStatsReloc->AddValueFl(reloct3_NR);
 
@@ -2069,9 +2042,6 @@ bool Tracking::Relocalization()
                             if (bDebugMode) cout << "Enough non-rigid." << endl;
                             nGood = nGoodNR;
                         }
-
-                        nFinalInliers_R = nGoodR;
-                        nFinalInliers_NR = nGoodNR;
 
                         // If many inliers but still not enough, search by projection again in a narrower window
                         // the camera has been already optimized with many points
@@ -2123,10 +2093,8 @@ bool Tracking::Relocalization()
                                     nGood = nGoodNR;
                                 }
 
-                                nFinalInliers_R = nGoodR;
-                                nFinalInliers_NR = nGoodNR;
-
                                 pStatsReloc->AddValue(nGoodR);
+                                pStatsReloc->AddValueFl(reloct2_R);
                                 pStatsReloc->AddValue(nGoodNR);
                                 pStatsReloc->AddValueFl(reloct4_NR);
 
@@ -2138,55 +2106,36 @@ bool Tracking::Relocalization()
                     }
                 }
 
-                if (nGood>=50)
-                    pStatsRelocS3->AddValue(1);
-                else
-                    pStatsRelocS3->AddValue(0);
-
-                pStatsRelocS3->AddValue(nTotalAdded);
-                pStatsRelocS3->AddValue(nFinalInliers_R);
-                pStatsRelocS3->AddValue(nFinalInliers_NR);
-
-                pStatsRelocS3->NewLine();
-
                 // If the pose is supported by enough inliers stop ransacs and continue
                 if(nGood>=50)
                 {
                     bMatch = true;
                     cout << "                 Enough inliers (" << nGood << ")." << endl;
-                    pStatsReloc->AddValue(nGood);
+                    //pStatsReloc->AddValue(nGood);
                     break;
                 }
                 else
                     nCandidates--;
             }
 
-            pStatsReloc->EmptyCols(3);
+            //pStatsReloc->EmptyCols(3);
         }
     }
 
     if(!bMatch)
     {
         cout << "-R- Relocation failure!" << endl;
-        pStatsReloc->AddValue(111);
-        pStatsReloc->NewLine();
-        pStatsPR->AddValue(mCurrentFrame.mnId);
-        pStatsPR->AddValue(0);
-        pStatsPR->AddValue(0);
-        pStatsPR->NewLine();
+        //pStatsReloc->AddValue(111);
+        //pStatsReloc->NewLine();
         return false;
     }
     else
     {
         mnLastRelocFrameId = mCurrentFrame.mnId;
         cout << "-R- Relocation successful!" << endl;
-        pStatsReloc->AddValue(222);
-        pStatsReloc->NewLine();
-        //pStatsPR->AddValue(mCurrentFrame.mnId);
-        //pStatsPR->AddValue(1);
+        //pStatsReloc->AddValue(222);
+        //pStatsReloc->NewLine();
         return true;
-        //if (bTestAllFrames) return false;   // Don't allow relocalization for statistic data gathering.
-        //else return true;    // Normal mode
     }
 
 }

@@ -58,7 +58,6 @@ void Statistics::OpenFile(bool newFile)
     }
     if (!newFile) {
         o.open(filename.c_str(), ios_base::app);
-        //o << endl;
     }
 }
 
@@ -156,6 +155,7 @@ void Statistics::ColumnHeadersMPRej()
 
 void Statistics::ColumnHeadersReloc()
 {
+    /*
     o << "kfcan\t"      // Frame ID
       << "acc15\t"         // KeyFrame ID
       << "acc4 \t"      // ORBs available
@@ -174,6 +174,25 @@ void Statistics::ColumnHeadersReloc()
       << "final\t"         // BadPoint by BA
       << "ress \t"     // New MPs.
       << endl;
+      */
+
+
+    o << "KF_candidates\t"      // Candidate KeyFrames
+      << "KF_15matches \t"      // KeyFrames with 15 matches or more
+      << "KF_04matches \t"      // KeyFrames with 4 matches or more
+      << ".            \t"      // KeyFrames with 4 matches or more
+      << "Inliers_PnP_R\t"      // Inliers original PnP
+      << "Time_PnP_R   \t"      // Time original PnP
+      << "Inliers_PnP_D\t"      // Inliers new PnP
+      << "Time_PnP_D   \t"      // Time new PnP
+      << "InliersAddBoW\t"      // Inliers added BoW
+      << "InliersAddMap\t"      // Inliers added Map Projection
+      << "nGoodR\t"             // Final Inliers original NL Optimization
+      << "timeR\t"              // Time original NL Optimization
+      << "nGoodD\t"             // Final Inliers new NL Optimization
+      << "timeD\t"              // Time new NL Optimization
+      << endl;
+
 
     string text;
     text = "Frame";  Heads.push_back(text);
@@ -397,7 +416,7 @@ void Statistics::AddValueFl(float a)
 void Statistics::AddText(string a)
 {
     OpenFile(0);
-    o << a << endl;
+    o << a << "\t";
     CloseFile();
 }
 
@@ -405,7 +424,6 @@ void Statistics::AddText(string a)
 void Statistics::EmptyCols(int a)
 {
     OpenFile(0);
-    o << endl;
     for (int aa=0; aa<a; aa++)
         o << " \t";
     CloseFile();
